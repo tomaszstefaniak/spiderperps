@@ -1,0 +1,25 @@
+/* src/app/globals.css */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  background-color: #121212; /* dark gray behind everything */
+  color: #fff;
+}
+
+#root, /* not strictly needed in app-dir, but harmless */
+#__next {
+  height: 100%;
+  width: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* base font—you can swap in your custom font if you had one in CRA */
+body {
+  font-family: sans-serif;
+}

@@ -1,0 +1,161 @@
+.selectTokenOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.selectTokenModal {
+  background: #1e1e1e;
+  color: #fff;
+  width: 420px;
+  height: 70vh;            /* ← give the container a real height */
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;        /* the inner list owns scrolling */
+  box-shadow: 0 10px 35px rgba(0,0,0,0.45);
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1rem 0.75rem;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+.closeButton:hover { color: #fff; }
+
+.loadingBody {
+  padding: 1rem;
+  text-align: center;
+  color: #ddd;
+}
+
+.searchInput {
+  margin: 0 1rem 0.75rem;
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid #444;
+  background: #2a2a2a;
+  color: #fff;
+  outline: none;
+}
+.searchInput::placeholder { color: #888; }
+
+/* wrapper around the virtualized List; it doesn't scroll itself */
+.tokenList {
+  flex: 1 1 0;
+  min-height: 240px;        /* ← guarantee some space even if measurement races */
+  padding: 0 1rem 1rem;
+  overflow: hidden;         /* List scrolls inside */
+  -webkit-overflow-scrolling: touch;
+}
+
+.scrollArea {
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+/* thin, consistent scrollbar */
+.scrollArea::-webkit-scrollbar { width: 6px; }
+.scrollArea::-webkit-scrollbar-track { background: transparent; }
+.scrollArea::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.18);
+  border-radius: 6px;
+}
+.scrollArea:hover::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.28);
+}
+
+.noTokens {
+  margin-top: 1rem;
+  color: #888;
+  text-align: center;
+}
+
+.tokenItem {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.tokenItem:hover { background: #333; }
+
+.tokenIcon {
+  width: 32px;
+  height: 32px;
+  margin-right: 0.75rem;
+  flex-shrink: 0;
+}
+
+.tokenInfo {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.tokenRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tokenRowSecondary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  color: #72f2b6;
+  opacity: 0.7;
+  margin-top: 0.2rem;
+}
+
+.tokenSymbol { font-weight: 600; }
+
+.tokenBalance {
+  font-size: 0.85rem;
+  color: #72f2b6;
+}
+
+.tokenName { font-size: 0.85rem; color: #aaa; }
+
+.tokenUsd { font-size: 0.85rem; color: #72f2b6; }
+
+.popularRow {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0 1rem 0.75rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.popularRow::-webkit-scrollbar { display: none; }
+
+.popularChip {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #282828;
+  border: 1px solid #383838;
+  color: #fff;
+  padding: 0.35rem 0.6rem;
+  border-radius: 9999px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.popularChip:hover { background: #333; }
+.popularChip img { width: 18px; height: 18px; }

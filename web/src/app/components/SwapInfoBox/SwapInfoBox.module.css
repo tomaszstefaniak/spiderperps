@@ -1,0 +1,45 @@
+.swapInfoBox {
+  width: 100%;
+  background: rgba(31, 31, 31, 0.8);
+  border-radius: 12px;
+  color: white;
+  font-size: 0.775rem;
+}
+
+.swapInfoHeader {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1.5rem;
+  cursor: pointer;
+}
+
+.swapInfoRate {
+  flex: 1;
+}
+
+.swapInfoFeeBadge {
+  background: #2f855a;
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  margin-left: 0.5em;
+}
+
+.swapInfoArrow {
+  margin-left: 0.5rem;
+  transition: transform 0.2s;
+}
+
+.swapInfoArrowOpen {
+  transform: rotate(180deg);
+}
+
+.swapInfoDetails {
+  padding: 0.2rem 1.5rem;
+  border-top: 2px solid #777;
+}
+
+.swapInfoRow {
+  display: flex;
+  justify-content: space-between;
+  margin: 0.4rem 0;
+}
