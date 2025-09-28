@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import styles from './Header.module.css';
-import { BACKGROUND_IMAGES } from '@utils/config'; // you already have this
+import { BACKGROUND_IMAGE, DEFAULT_BACKGROUND } from '@utils/config';
 
 const mydexLogo = '/assets/logo/eth_logo_mini_white.svg';
 const gearIcon = '/assets/images/gear-8.svg';
@@ -15,26 +15,22 @@ type Health = {
 
 export default function Header() {
   const [showGearPopup, setShowGearPopup] = useState(false);
-  const [bg, setBg] = useState<string>(() => {
-    if (typeof window === 'undefined') return BACKGROUND_IMAGES?.[0] || '';
-    return window.localStorage.getItem('backgroundImage') || (BACKGROUND_IMAGES?.[0] || '');
-  });
-
   const [health, setHealth] = useState<Health | null>(null);
   const [healthErr, setHealthErr] = useState<string>('');
 
-  // Persist background locally so your Layout can read it if you want later
+  // Apply the single background on mount
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('backgroundImage', bg || '');
-      // Optional: apply directly to body for now
-      if (bg) document.body.style.backgroundImage = `url(${bg})`;
+    const bg = DEFAULT_BACKGROUND || BACKGROUND_IMAGE?.[0] || '';
+    if (bg && typeof document !== 'undefined') {
+      document.body.style.backgroundImage = `url(${bg})`;
       document.body.style.backgroundSize = 'cover';
       document.body.style.backgroundPosition = 'center';
+      document.body.style.backgroundRepeat = 'no-repeat';
+      document.body.style.backgroundAttachment = 'fixed';
     }
-  }, [bg]);
+  }, []);
 
-  // Ping /api/health (fixes the 404 you saw previously)
+  // Health ping
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -76,7 +72,7 @@ export default function Header() {
             className={styles.headerSearchInput}
             placeholder="Search token or address"
             readOnly
-            onClick={() => {/* hook up your global token modal later if desired */}}
+            onClick={() => {}}
             aria-label="Open token search"
           />
         </div>
@@ -97,25 +93,6 @@ export default function Header() {
         {showGearPopup && (
           <div id="gear-popup" className={styles.headerGearPopupVertical}>
             <div className={styles.gearSection}>
-              <strong>Background</strong>
-              <div className={styles.headerBackgroundGrid}>
-                {BACKGROUND_IMAGES.map((img, i) => (
-                  <div
-                    key={i}
-                    className={styles.headerBackgroundOption}
-                    onClick={() => setBg(img)}
-                  >
-                    <img
-                      src={img}
-                      alt={`BG${i + 1}`}
-                      className={styles.headerBackgroundOptionImage}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className={styles.gearSection}>
               <strong>Status</strong>
               <div className={styles.headerExplorerLabel}>
                 {status}{net ? ` · ${net}` : ''}
@@ -134,7 +111,7 @@ export default function Header() {
         )}
 
         {/* Status pill on the far right */}
-        <div className={health?.ok ? undefined : styles.bad} style={{ color: health?.ok ? '#72f2b6' : '#fca5a5' }}>
+        <div style={{ color: health?.ok ? '#72f2b6' : '#fca5a5' }}>
           {status}{net ? ` · ${net}` : ''}
         </div>
       </div>
