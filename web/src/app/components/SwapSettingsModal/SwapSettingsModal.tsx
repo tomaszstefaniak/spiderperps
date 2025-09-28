@@ -1,9 +1,10 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import styles from './SwapSettingsModal.module.css';
 
 export type SpeedOption = 'fast' | 'turbo' | 'ultra';
-
 const PRESETS = [0.5, 1, 3];
 
 type Props = {
@@ -24,6 +25,21 @@ const SwapSettingsModal: React.FC<Props> = ({
   setSpeed,
 }) => {
   const [tmpSlip, setTmpSlip] = useState(slippage.toString());
+  const [mounted, setMounted] = useState(false);
+
+  // avoid SSR mismatch for portals
+  useEffect(() => setMounted(true), []);
+
+  // keep input in sync when parent slippage changes
+  useEffect(() => setTmpSlip(slippage.toString()), [slippage]);
+
+  // lock page scroll while open
+  useEffect(() => {
+    if (!visible) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [visible]);
 
   const handleInput = (raw: string) => {
     if (!/^(\d+(\.\d*)?|\.\d*)?$/.test(raw)) return;
@@ -34,25 +50,30 @@ const SwapSettingsModal: React.FC<Props> = ({
     setTmpSlip(raw);
   };
 
-  useEffect(() => setTmpSlip(slippage.toString()), [slippage]);
+  if (!visible || !mounted) return null;
 
-  if (!visible) return null;
-
-  /* helpers */
   const numSlip = parseFloat(tmpSlip) || 0;
   const presetActive = (p: number) => Math.abs(numSlip - p) < 1e-9;
-
   const applyAndClose = () => {
     setSlippage(Number.isFinite(numSlip) && numSlip > 0 ? numSlip : 0.5);
     onClose();
   };
 
-  return (
-    <div className={styles.swapSettingsOverlay}>
-      <div className={styles.swapSettingsModal}>
+  return createPortal(
+    <div
+      className={styles.swapSettingsOverlay}
+      role="presentation"
+      onClick={onClose}
+    >
+      <div
+        className={styles.swapSettingsModal}
+        role="dialog"
+        aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h3 className={styles.title}>Swap Settings</h3>
 
-        {/* ───── Slippage ───── */}
+        {/* Slippage */}
         <div className={styles.slippageSection}>
           <div className={styles.slippageHeader}>
             <span>Slippage</span>
@@ -62,46 +83,36 @@ const SwapSettingsModal: React.FC<Props> = ({
             {PRESETS.map((p) => (
               <button
                 key={p}
-                className={`${styles.slippageBtn} ${
-                  presetActive(p) ? styles.active : ''
-                }`}
+                className={`${styles.slippageBtn} ${presetActive(p) ? styles.active : ''}`}
                 onClick={() => setTmpSlip(p.toString())}
               >
                 {p}%
               </button>
             ))}
-
-            {/* custom input */}
             <div className={styles.customWrapper}>
               <input
                 type="text"
                 inputMode="decimal"
-                className={`
-                  ${styles.slippageInput} 
-                  ${PRESETS.some(presetActive) ? '' : styles.active}
-                `}
+                className={`${styles.slippageInput} ${PRESETS.some(presetActive) ? '' : styles.active}`}
                 value={tmpSlip}
                 onChange={(e) => handleInput(e.target.value)}
               />
             </div>
             <span className={styles.percentLabel}>%</span>
           </div>
-
           <p className={styles.hintText}>
             This is the maximum slippage you’re willing to accept.
           </p>
         </div>
 
-        {/* ───── Speed ───── */}
+        {/* Speed */}
         <div className={styles.speedSection}>
           <p className={styles.sectionTitle}>Speed</p>
           <div className={styles.speedOptions}>
-            {( ['fast', 'turbo', 'ultra'] as SpeedOption[] ).map((opt) => (
+            {(['fast', 'turbo', 'ultra'] as SpeedOption[]).map((opt) => (
               <button
                 key={opt}
-                className={`${styles.speedBtn} ${
-                  speed === opt ? styles.active : ''
-                }`}
+                className={`${styles.speedBtn} ${speed === opt ? styles.active : ''}`}
                 onClick={() => setSpeed(opt)}
               >
                 {opt}
@@ -113,17 +124,14 @@ const SwapSettingsModal: React.FC<Props> = ({
           </p>
         </div>
 
-        {/* ───── Footer ───── */}
+        {/* Footer */}
         <div className={styles.modalButtons}>
-          <button onClick={onClose} className={styles.cancelBtn}>
-            Close
-          </button>
-          <button onClick={applyAndClose} className={styles.applyBtn}>
-            Apply
-          </button>
+          <button onClick={onClose} className={styles.cancelBtn}>Close</button>
+          <button onClick={applyAndClose} className={styles.applyBtn}>Apply</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

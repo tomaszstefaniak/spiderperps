@@ -1,56 +1,49 @@
-// src/app/api/quote/route.ts
-export const runtime = 'edge'
-export const dynamic = 'force-dynamic'
+import { NextResponse } from "next/server";
+const svc = process.env.HL_SERVICE_URL || "http://127.0.0.1:8787";
 
-import type { NextRequest } from 'next/server'
-import { NextResponse } from 'next/server'
-import { safeApi } from '@/lib/withErrorHandling'
+export async function POST(req: Request) {
+  try {
+    const { inputSymbol, outputSymbol, amount, slippage } = await req.json();
+    const aNum = Number(amount);
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = req.nextUrl
-  const inputMint   = searchParams.get('inputMint')
-  const outputMint  = searchParams.get('outputMint')
-  const amount      = searchParams.get('amount')
-  const slippageBps = searchParams.get('slippageBps') || '100'
-  const txVersion   = searchParams.get('txVersion')   || 'V0'
-  const wrapSol     = searchParams.get('wrapSol')     || 'false'
-  const unwrapSol   = searchParams.get('unwrapSol')   || 'false'
+    if (!inputSymbol || !outputSymbol || !aNum || aNum <= 0) {
+      return NextResponse.json({ error: "Invalid params" }, { status: 400 });
+    }
+    const inU = String(inputSymbol).toUpperCase();
+    const outU = String(outputSymbol).toUpperCase();
 
-  if (!inputMint || !outputMint || !amount) {
-    return NextResponse.json(
-      { error: 'missing params' },
-      { status: 400 }
-    )
+    // MVP: only USDC<->COIN
+    if (inU !== "USDC" && outU !== "USDC") {
+      return NextResponse.json({ error: "Only USDC↔COIN supported" }, { status: 400 });
+    }
+
+    const isBuy = inU === "USDC";
+    const coin = isBuy ? outU : inU;
+
+    // Call HL /quote (your FastAPI expects: { coin, side, size })
+    const r = await fetch(`${svc}/quote`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ coin, side: isBuy ? "buy" : "sell", size: aNum, slippage }),
+    });
+
+    const text = await r.text();
+    let j: any; try { j = JSON.parse(text); } catch { j = { raw: text }; }
+    if (!r.ok) return NextResponse.json({ error: j?.detail || j?.error || j }, { status: r.status });
+
+    // Normalize to the simple shape the MVP UI already handled:
+    // - if buy: output is coin amount (use outCoinQuantized || outCoin)
+    // - if sell: output is usdcOut
+    let outStr = "0";
+    if (isBuy) outStr = j?.outCoinQuantized ?? j?.outCoin ?? j?.out ?? "0";
+    else outStr = j?.usdcOut ?? j?.out ?? "0";
+
+    return NextResponse.json({
+      outRaw: String(outStr),      // plain string is fine for MVP
+      routeCount: 1,
+      priceImpact: "0.00%",
+    });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || "quote failed" }, { status: 500 });
   }
-
-  return safeApi(async () => {
-    // build the exact query string that works in your curl tests
-    const query = new URLSearchParams({
-      inputMint,
-      outputMint,
-      amount,
-      slippageBps,
-      txVersion,
-      wrapSol,
-      unwrapSol,
-    }).toString()
-
-    // v1 compute host (the one you verified with curl)
-    const v1url = `https://transaction-v1.raydium.io/compute/swap-base-in?${query}`
-
-    const r1 = await fetch(v1url).then(r => r.json())
-    if (!r1.success) {
-      console.error('V1 quote failed:', { r1, v1url })
-      throw new Error('V1 quote failed')
-    }
-
-    const outRaw = Number(r1.data.outputAmount)
-    return {
-      outRaw,
-      priceImpact: `${r1.data.priceImpactPct.toFixed(2)}%`,
-      routeCount: r1.data.routePlan.length,
-      // you can either use data.otherAmountThreshold or recalc minReceived here
-      minReceived: r1.data.otherAmountThreshold.toString(),
-    }
-  })
 }

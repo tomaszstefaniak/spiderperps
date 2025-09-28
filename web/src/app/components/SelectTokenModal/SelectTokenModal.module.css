@@ -64,8 +64,10 @@
 }
 
 .scrollArea {
+  height: 100%;               /* ← fill .tokenList */
   overflow-y: auto;
-  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* thin, consistent scrollbar */

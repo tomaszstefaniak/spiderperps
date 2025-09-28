@@ -1,116 +1,59 @@
-import React, { useState, useEffect } from 'react'
-import styles from './Header.module.css'
-import { PublicKey } from '@solana/web3.js'
-import SelectTokenModal from '../SelectTokenModal/SelectTokenModalSmart'
-import {
-  HELIUS_API_KEY,
-  INITIAL_RPCS,
-  BACKGROUND_IMAGES,
-  DEFAULT_RPC,
-} from '@utils/config'
-import { CombinedTokenInfo, useAllTokens } from '@/app/context/TokenContext'
+'use client';
 
-const mydexLogo = '/assets/logo/eth_logo_mini_white.svg'
-const gearIcon = '/assets/images/gear-8.svg'
+import React, { useEffect, useState } from 'react';
+import styles from './Header.module.css';
+import { BACKGROUND_IMAGES } from '@utils/config'; // you already have this
 
-export type RPCEndpoint = {
-  label: string
-  url: string
-  latency: number | null
-}
+const mydexLogo = '/assets/logo/eth_logo_mini_white.svg';
+const gearIcon = '/assets/images/gear-8.svg';
 
-type WalletType = {
-  publicKey: PublicKey
-  signTransaction: (tx: any) => Promise<any>
-}
+type Health = {
+  ok?: boolean;
+  network?: 'mainnet' | 'testnet' | string;
+  trading_enabled?: boolean;
+};
 
-type HeaderProps = {
-  wallet: WalletType | null
-  setWallet: (w: WalletType | null) => void
-  onConnectWallet: () => void
-  background: string
-  onChangeBackground: (bg: string) => void
-  selectedRPC: string
-  setSelectedRPC: (rpc: string) => void
-}
+export default function Header() {
+  const [showGearPopup, setShowGearPopup] = useState(false);
+  const [bg, setBg] = useState<string>(() => {
+    if (typeof window === 'undefined') return BACKGROUND_IMAGES?.[0] || '';
+    return window.localStorage.getItem('backgroundImage') || (BACKGROUND_IMAGES?.[0] || '');
+  });
 
-async function measureLatency(rpcUrl: string): Promise<number> {
-  const start = performance.now()
-  try {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-    if (rpcUrl.includes('helius')) {
-      headers['Authorization'] = `Bearer ${HELIUS_API_KEY}`
+  const [health, setHealth] = useState<Health | null>(null);
+  const [healthErr, setHealthErr] = useState<string>('');
+
+  // Persist background locally so your Layout can read it if you want later
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('backgroundImage', bg || '');
+      // Optional: apply directly to body for now
+      if (bg) document.body.style.backgroundImage = `url(${bg})`;
+      document.body.style.backgroundSize = 'cover';
+      document.body.style.backgroundPosition = 'center';
     }
-    const res = await fetch(rpcUrl, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'getLatestBlockhash',
-        params: [],
-      }),
-    })
-    await res.json()
-    return performance.now() - start
-  } catch {
-    return Infinity
-  }
-}
+  }, [bg]);
 
-const Header: React.FC<HeaderProps> = ({
-  wallet,
-  setWallet,
-  onConnectWallet,
-  background,
-  onChangeBackground,
-  selectedRPC,
-  setSelectedRPC,
-}) => {
-  const [showTokenModal, setShowTokenModal] = useState(false)
-  const [showGearPopup, setShowGearPopup] = useState(false)
-  const [walletInfoOpen, setWalletInfoOpen] = useState(false)
-  const [customRPC, setCustomRPC] = useState('')
-  const [rpcs, setRpcs] = useState<RPCEndpoint[]>(
-    INITIAL_RPCS.map(rpc => ({ ...rpc, latency: null }))
-  )
-
-  // 🔎 token loading state from context
-  const { tokens, loading: tokensLoading } = useAllTokens()
-
+  // Ping /api/health (fixes the 404 you saw previously)
   useEffect(() => {
-    if (!selectedRPC) setSelectedRPC(DEFAULT_RPC)
-  }, [selectedRPC, setSelectedRPC])
-
-  useEffect(() => {
-    const measureAll = async () => {
-      for (const rpc of INITIAL_RPCS) {
-        const lat = await measureLatency(rpc.url)
-        setRpcs(prev =>
-          prev.map(x => (x.url === rpc.url ? { ...x, latency: lat } : x))
-        )
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch('/api/health', { cache: 'no-store' });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j?.error || 'health error');
+        if (alive) setHealth(j);
+      } catch (e: any) {
+        if (alive) setHealthErr(e?.message || 'health error');
       }
-    }
-    measureAll()
-    const iv = setInterval(measureAll, 5000)
-    return () => clearInterval(iv)
-  }, [])
+    })();
+    return () => { alive = false; };
+  }, []);
 
-  const handleDisconnect = () => {
-    setWallet(null)
-    setWalletInfoOpen(false)
-  }
-
-  const handleSelectToken = (token: CombinedTokenInfo) => {
-    console.log('Header selected token:', token.symbol)
-    setShowTokenModal(false)
-  }
-
-  let shortAddr = ''
-  if (wallet) {
-    const a = wallet.publicKey.toBase58()
-    shortAddr = `${a.slice(0, 2)}...${a.slice(-2)}`
-  }
+  const status =
+    healthErr ? 'Disconnected' :
+    health?.ok ? 'Connected' : 'Unknown';
+  const net = health?.network ? (health.network === 'testnet' ? 'testnet' : 'mainnet') : '';
 
   return (
     <div className={styles.headerContainer}>
@@ -121,7 +64,7 @@ const Header: React.FC<HeaderProps> = ({
         <button className={styles.headerButton}>Spot</button>
       </div>
 
-      {/* CENTER */}
+      {/* CENTER (search – UI only for now) */}
       <div className={styles.headerCenter}>
         <div className={styles.headerSearchContainer}>
           <img
@@ -131,39 +74,39 @@ const Header: React.FC<HeaderProps> = ({
           />
           <input
             className={styles.headerSearchInput}
-            placeholder={tokensLoading ? 'Loading tokens…' : 'Search token or address'}
+            placeholder="Search token or address"
             readOnly
-            onFocus={() => setShowTokenModal(true)}
-            onClick={() => setShowTokenModal(true)}
+            onClick={() => {/* hook up your global token modal later if desired */}}
             aria-label="Open token search"
-            aria-busy={tokensLoading}
           />
-          {tokensLoading && <span className={styles.searchSpinner} aria-hidden="true" />}
         </div>
       </div>
 
       {/* RIGHT */}
       <div className={styles.headerRight}>
+        {/* Settings */}
         <button
           className={styles.headerButton}
           onClick={() => setShowGearPopup(v => !v)}
+          aria-expanded={showGearPopup}
+          aria-controls="gear-popup"
         >
           <img src={gearIcon} alt="settings" className={styles.headerGearIcon} />
         </button>
 
         {showGearPopup && (
-          <div className={styles.headerGearPopupVertical}>
+          <div id="gear-popup" className={styles.headerGearPopupVertical}>
             <div className={styles.gearSection}>
               <strong>Background</strong>
               <div className={styles.headerBackgroundGrid}>
-                {BACKGROUND_IMAGES.map((bg, i) => (
+                {BACKGROUND_IMAGES.map((img, i) => (
                   <div
                     key={i}
                     className={styles.headerBackgroundOption}
-                    onClick={() => onChangeBackground(bg)}
+                    onClick={() => setBg(img)}
                   >
                     <img
-                      src={bg}
+                      src={img}
                       alt={`BG${i + 1}`}
                       className={styles.headerBackgroundOptionImage}
                     />
@@ -173,116 +116,28 @@ const Header: React.FC<HeaderProps> = ({
             </div>
 
             <div className={styles.gearSection}>
-              <strong>Preferred Explorer</strong>
-              <div className={styles.headerExplorerLabel}>Solscan</div>
+              <strong>Status</strong>
+              <div className={styles.headerExplorerLabel}>
+                {status}{net ? ` · ${net}` : ''}
+              </div>
             </div>
 
             <div className={styles.gearSection}>
-              <strong>RPC Endpoint</strong>
-              <div className={styles.headerRpcOptions}>
-                {rpcs.map(rpc => (
-                  <label key={rpc.url} className={styles.headerRpcLabel}>
-                    <input
-                      type="radio"
-                      name="rpcEndpoint"
-                      checked={selectedRPC === rpc.url}
-                      onChange={() => setSelectedRPC(rpc.url)}
-                    />
-                    <span>
-                      {rpc.label}{' '}
-                      {rpc.latency !== null && rpc.latency !== Infinity
-                        ? `(${rpc.latency.toFixed(0)}ms)`
-                        : '(N/A)'}
-                    </span>
-                  </label>
-                ))}
-
-                <label className={styles.headerRpcLabel}>
-                  <input
-                    type="radio"
-                    name="rpcEndpoint"
-                    checked={selectedRPC === customRPC && !!customRPC}
-                    onChange={() => customRPC && setSelectedRPC(customRPC)}
-                  />
-                  <span>Custom RPC:</span>
-                </label>
-                <div className={styles.headerCustomRpcRow}>
-                  <input
-                    className={styles.headerCustomRpcInput}
-                    placeholder="https://your.custom.rpc/"
-                    value={customRPC}
-                    onChange={e => setCustomRPC(e.target.value)}
-                  />
-                  <button
-                    className={styles.headerCustomRpcSave}
-                    onClick={() => {
-                      if (customRPC.trim()) {
-                        setSelectedRPC(customRPC.trim())
-                        setCustomRPC('')
-                      }
-                    }}
-                  >
-                    Save
-                  </button>
-                  <button
-                    className={styles.cancelBtn}
-                    onClick={() => setShowGearPopup(false)}
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
+              <button
+                className={styles.cancelBtn}
+                onClick={() => setShowGearPopup(false)}
+              >
+                Close
+              </button>
             </div>
           </div>
         )}
 
-        {!wallet ? (
-          <button className={styles.headerButton} onClick={onConnectWallet}>
-            Connect
-          </button>
-        ) : (
-          <div className={styles.headerWalletContainer}>
-            <button
-              className={styles.headerWalletButton}
-              onClick={() => setWalletInfoOpen(o => !o)}
-            >
-              <span className={styles.headerWalletAddress}>{shortAddr}</span>
-              <span
-                className={`${styles.headerWalletArrow} ${
-                  walletInfoOpen ? styles.rotated : ''
-                }`}
-              >
-                ▼
-              </span>
-            </button>
-            {walletInfoOpen && (
-              <div className={styles.headerWalletPopup}>
-                <div className={styles.headerFullAddress}>
-                  {wallet.publicKey.toBase58()}
-                </div>
-                <button
-                  className={styles.headerDisconnectButton}
-                  onClick={handleDisconnect}
-                >
-                  Disconnect Wallet
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Status pill on the far right */}
+        <div className={health?.ok ? undefined : styles.bad} style={{ color: health?.ok ? '#72f2b6' : '#fca5a5' }}>
+          {status}{net ? ` · ${net}` : ''}
+        </div>
       </div>
-
-      {/* token picker (always openable; modal itself shows loading message while indexing) */}
-      <SelectTokenModal
-        visible={showTokenModal}
-        onClose={() => setShowTokenModal(false)}
-        onSelect={handleSelectToken}
-        poolMints={undefined}
-        rpcEndpoint={selectedRPC || DEFAULT_RPC}
-        owner={wallet?.publicKey ?? null}
-      />
     </div>
-  )
+  );
 }
-
-export default Header
