@@ -1,97 +1,77 @@
+// src/app/api/swap/route.ts
 import { NextResponse } from "next/server";
 
-const SVC = process.env.HL_SERVICE_URL || "http://127.0.0.1:8787";
+const svc = process.env.HL_SERVICE_URL || "http://127.0.0.1:8787"; // your FastAPI
 
-type Req = {
-  inputSymbol: string;
-  outputSymbol: string;
-  amount: number | string;
-  slippage?: number; // may be 1 for 1% or 0.01 for 1%
-};
-
-function normSlip(s?: number) {
-  if (!s || !isFinite(s)) return 0.01;           // default 1%
-  return s > 1 ? s / 100 : s;                    // accept percent or fraction
-}
+// utility to sleep on server
+const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as Req;
-    const amount = Number(body.amount);
-    const inU  = String(body.inputSymbol || "").toUpperCase();
-    const outU = String(body.outputSymbol || "").toUpperCase();
-    const slippage = normSlip(body.slippage);
+    const { inputSymbol, outputSymbol, amount, slippage = 0.01 } = await req.json();
 
-    if (!amount || amount <= 0) {
-      return NextResponse.json({ ok: false, error: "Invalid amount" }, { status: 400 });
+    const aNum = Number(amount);
+    if (!inputSymbol || !outputSymbol || !aNum || aNum <= 0) {
+      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
+
+    const inU = String(inputSymbol).toUpperCase();
+    const outU = String(outputSymbol).toUpperCase();
     if (inU !== "USDC" && outU !== "USDC") {
-      return NextResponse.json({ ok: false, error: "Only USDC↔COIN supported in MVP" }, { status: 400 });
+      return NextResponse.json({ error: "Only USDC↔COIN supported in MVP" }, { status: 400 });
     }
 
     const isBuy = inU === "USDC";
-    const payload = isBuy
-      ? { coin: outU, side: "buy",  usdcIn: amount, slippage }
-      : { coin: inU,  side: "sell", size:   amount, slippage };
+    const body = isBuy
+      ? { coin: outU, side: "buy", usdcIn: aNum, slippage }
+      : { coin: inU,  side: "sell", size: aNum,   slippage };
 
-    // 30s client timeout so we can return a nice JSON instead of 500
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), 30_000);
+    // 1) place order
+    const r = await fetch(`${svc}/order/market`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const text = await r.text();
+    const placed = (() => { try { return JSON.parse(text); } catch { return { raw: text }; } })();
 
-    let resp: Response;
-    try {
-      resp = await fetch(`${SVC}/order/market`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-    } finally {
-      clearTimeout(t);
+    if (!r.ok) {
+      const msg = placed?.detail || placed?.error || placed?.raw || `HL swap error (HTTP ${r.status})`;
+      return NextResponse.json({ error: msg }, { status: r.status });
     }
 
-    const text = await resp.text();
-    const data = (() => { try { return JSON.parse(text); } catch { return { raw: text }; } })();
+    const orderIds: number[] = Array.isArray(placed?.orderIds) ? placed.orderIds : [];
 
-    // Normalize all the ways an id might appear
-    const id =
-      data?.orderId ??
-      data?.orderID ??
-      data?.order_id ??
-      data?.id ??
-      data?.order?.id ??
-      null;
+    // 2) try a short server-side poll for fills (best-effort)
+    //    We *don’t* block long — UI also handles "checking fill..." text.
+    let filled = false;
+    const who = process.env.NEXT_PUBLIC_HL_ACCOUNT || process.env.HL_ACCOUNT_ADDRESS || "";
 
-    // 2xx → accepted (maybe without id)
-    if (resp.ok) {
-      return NextResponse.json({
-        ok: true,
-        accepted: true,
-        orderId: id || undefined,
-        provider: data,
-      });
+    if (who && orderIds.length) {
+      for (let i = 0; i < 6; i++) {
+        try {
+          const s = await fetch(`${svc}/order-status?user=${who}&oids=${orderIds.join(",")}`, { cache: "no-store" });
+          const st = await s.json();
+          // If provider returns raw statuses, check for "filled" marker
+          const hit = Array.isArray(st?.orders) && st.orders.some((o: any) => {
+            const raw = o?.raw;
+            const status = raw?.order?.status || raw?.status;
+            return String(status || "").toLowerCase().includes("filled");
+          });
+          if (hit) { filled = true; break; }
+        } catch {}
+        await sleep(500);
+      }
     }
 
-    // Upstream timeouts (map to a clean code so UI can show “Upstream timeout”)
-    if (resp.status === 504 || resp.status === 408) {
-      return NextResponse.json({
-        ok: false,
-        code: resp.status,
-        error: "upstream_timeout",
-        provider: data,
-      }, { status: 200 });
-    }
-
-    // Other upstream error
-    const msg = data?.detail || data?.error || data?.raw || `Provider error (HTTP ${resp.status})`;
-    return NextResponse.json({ ok: false, code: resp.status, error: msg, provider: data }, { status: 200 });
-
-  } catch (err: any) {
-    // Abort == timeout at our edge
-    const aborted = err?.name === "AbortError";
-    if (aborted) {
-      return NextResponse.json({ ok: false, error: "client_timeout" }, { status: 200 });
-    }
-    return NextResponse.json({ ok: false, error: err?.message || "internal_error" }, { status: 200 });
+    return NextResponse.json({
+      ok: true,
+      accepted: !!placed?.accepted,
+      filled,
+      orderIds,
+      note: (!orderIds.length ? "provider returned no id" : undefined),
+    });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || "swap failed" }, { status: 500 });
   }
 }

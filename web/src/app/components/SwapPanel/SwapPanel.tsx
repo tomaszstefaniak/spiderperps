@@ -1,3 +1,4 @@
+// src/app/components/SwapPanel/SwapPanel.tsx
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -17,9 +18,16 @@ const clamp = (n: number, lo: number, hi: number) => Math.min(Math.max(n, lo), h
 const pretty = (n: number, dp = 6) =>
   (isFinite(n) ? n : 0).toLocaleString(undefined, { maximumFractionDigits: dp });
 
-type SwapResp =
-  | { ok: true; accepted: true; orderId?: string; provider?: any }
-  | { ok: false; error: string; code?: number; provider?: any };
+type SwapAPIResp = {
+  ok?: boolean;
+  accepted?: boolean;
+  filled?: boolean;
+  orderIds?: number[];
+  note?: string;
+  error?: string;
+  detail?: string;
+  raw?: any;
+};
 
 export default function SwapPanel() {
   // data hooks
@@ -128,21 +136,6 @@ export default function SwapPanel() {
   const [swapBusy, setSwapBusy] = useState(false);
   const [swapNotice, setSwapNotice] = useState<string | null>(null);
 
-  const pollStatus = useCallback(async (orderId: string) => {
-    // poll up to ~20s total
-    for (let i = 0; i < 10; i++) {
-      try {
-        const r = await fetch(`/api/order-status?orderId=${encodeURIComponent(orderId)}`);
-        const j = await r.json();
-        const status = (j?.status || '').toLowerCase();
-        if (status === 'filled') return 'filled';
-        if (status === 'rejected' || status === 'cancelled') return status;
-      } catch {/* ignore and retry */}
-      await new Promise(res => setTimeout(res, 2000));
-    }
-    return 'unknown';
-  }, []);
-
   const doSwap = useCallback(async () => {
     setSwapBusy(true);
     setSwapNotice('Placing order…');
@@ -159,52 +152,33 @@ export default function SwapPanel() {
         }),
       });
 
-      const res: SwapResp = await r.json();
-
-      if (!res.ok) {
-        if ((res as any).error === 'upstream_timeout') {
-          setSwapNotice('Upstream timeout');
-        } else if ((res as any).error === 'client_timeout') {
-          setSwapNotice('Request timed out');
-        } else {
-          setSwapNotice((res as any).error || 'Swap failed');
-        }
-        return;
+      const j: SwapAPIResp = await r.json();
+      if (!r.ok) {
+        throw new Error(j?.error || j?.detail || j?.raw || `HTTP ${r.status}`);
       }
 
-      // Accepted
-      if (res.orderId) {
-        setSwapNotice('Order placed…checking fill…');
-        const outcome = await pollStatus(res.orderId);
-        if (outcome === 'filled') {
-          setSwapNotice('Filled!');
-          setAmountIn('');
-          setQuoteOut(0);
-          await refreshBalances();
-        } else if (outcome === 'rejected') {
-          setSwapNotice('Order rejected');
-        } else if (outcome === 'cancelled') {
-          setSwapNotice('Order cancelled');
-        } else {
-          setSwapNotice('Order placed (no fill yet)');
-        }
+      if (j?.filled) {
+        setSwapNotice('Swap filled!');
+      } else if (j?.accepted) {
+        setSwapNotice(
+          (j?.orderIds && j.orderIds.length)
+            ? 'Order placed…checking fill'
+            : 'Order placed (provider returned no id)…checking fill'
+        );
       } else {
-        // Accepted but no id – refresh balances a couple times; testnet often still fills
-        setSwapNotice('Order placed (provider returned no id)…checking fill');
-        await new Promise(res => setTimeout(res, 1500));
-        await refreshBalances();
-        await new Promise(res => setTimeout(res, 3000));
-        await refreshBalances();
-        setSwapNotice('Order placed (no fill yet)');
-        setAmountIn('');
-        setQuoteOut(0);
+        setSwapNotice('Order sent!');
       }
+
+      // reset inputs and refresh balances shortly after
+      setAmountIn('');
+      setQuoteOut(0);
+      setTimeout(() => refreshBalances(), 600);
     } catch (e: any) {
       setSwapNotice(e?.message || 'Swap failed');
     } finally {
       setSwapBusy(false);
     }
-  }, [fromSym, toSym, amountIn, slippagePct, refreshBalances, pollStatus]);
+  }, [fromSym, toSym, amountIn, slippagePct, refreshBalances]);
 
   // button state
   let swapDisabled = false;
@@ -261,7 +235,15 @@ export default function SwapPanel() {
         />
 
         {/* Notices */}
-        {!!swapNotice && <div className={`${styles.notice} ${/timeout|failed|reject|unavail/i.test(swapNotice) ? styles.error : styles.success}`}>{swapNotice}</div>}
+        {!!swapNotice && (
+          <div
+            className={`${styles.notice} ${
+              /timeout|failed|reject|unavail|error/i.test(swapNotice) ? styles.error : styles.success
+            }`}
+          >
+            {swapNotice}
+          </div>
+        )}
         {!!quoteErr && <div className={`${styles.notice} ${styles.error}`}>{quoteErr}</div>}
 
         {/* Swap */}
