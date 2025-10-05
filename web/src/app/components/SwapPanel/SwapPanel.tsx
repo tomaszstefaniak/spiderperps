@@ -137,24 +137,42 @@ export default function SwapPanel() {
   const [swapNotice, setSwapNotice] = useState<string | null>(null);
 
   const doSwap = useCallback(async () => {
+    const id = Math.random().toString(36).slice(2, 8);
+    const payload = {
+      inputSymbol: fromSym,
+      outputSymbol: toSym,
+      amount: Number(amountIn),
+      slippage: clamp(slippagePct, 0, 5) / 100, // UI % → fraction
+    };
+
     setSwapBusy(true);
     setSwapNotice('Placing order…');
 
+    // helpful local breadcrumb for quick inspection in DevTools
+    (window as any).__lastSwapReq = { id, payload, at: Date.now() };
+    console.log(`[swap:${id}] ->`, payload);
+
     try {
+      const t0 = performance.now();
       const r = await fetch('/api/swap', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          inputSymbol: fromSym,
-          outputSymbol: toSym,
-          amount: Number(amountIn),
-          slippage: clamp(slippagePct, 0, 5) / 100, // UI % → fraction
-        }),
+        body: JSON.stringify(payload),
       });
 
-      const j: SwapAPIResp = await r.json();
+      const text = await r.text();
+      let j: SwapAPIResp & { debugId?: string; [k: string]: any };
+      try {
+        j = JSON.parse(text);
+      } catch {
+        j = { raw: text as any } as any;
+      }
+
+      const dt = Math.round(performance.now() - t0);
+      console.log(`[swap:${id}] <-`, { ok: r.ok, status: r.status, ms: dt, body: j });
+
       if (!r.ok) {
-        throw new Error(j?.error || j?.detail || j?.raw || `HTTP ${r.status}`);
+        throw new Error((j as any)?.error || (j as any)?.detail || (j as any)?.raw || `HTTP ${r.status}`);
       }
 
       if (j?.filled) {
@@ -172,13 +190,23 @@ export default function SwapPanel() {
       // reset inputs and refresh balances shortly after
       setAmountIn('');
       setQuoteOut(0);
-      setTimeout(() => refreshBalances(), 600);
+
+      setTimeout(() => {
+        console.log(`[swap:${id}] refreshing balances…`);
+        try { refreshBalances(); } catch (e) { console.warn(`[swap:${id}] refresh error`, e); }
+      }, 600);
+
+      // stash the last response for quick inspection
+      (window as any).__lastSwapResp = { id, response: j, at: Date.now() };
     } catch (e: any) {
+      console.error(`[swap:${id}] ERROR`, e);
       setSwapNotice(e?.message || 'Swap failed');
     } finally {
       setSwapBusy(false);
+      console.log(`[swap:${id}] done`);
     }
   }, [fromSym, toSym, amountIn, slippagePct, refreshBalances]);
+
 
   // button state
   let swapDisabled = false;

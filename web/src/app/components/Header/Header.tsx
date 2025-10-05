@@ -57,7 +57,7 @@ export default function Header() {
       <div className={styles.headerLeft}>
         <img src={mydexLogo} alt="logo" className={styles.headerLogo} />
         <span className={styles.headerAppName}>mydex</span>
-        <button className={styles.headerButton}>Spot</button>
+        <button className={styles.headerButton}>Perps</button>
       </div>
 
       {/* CENTER (search – UI only for now) */}
