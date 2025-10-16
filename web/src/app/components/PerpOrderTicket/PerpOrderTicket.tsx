@@ -1,87 +1,75 @@
-// src/app/components/PerpOrderTicket/PerpOrderTicket.tsx
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import styles from '../SwapPanel/SwapPanel.module.css';
-
+import styles from './PerpOrderTicket.module.css';
 import SwapSettingsModal from '../SwapSettingsModal/SwapSettingsModal';
 import { useBalances } from '@/hooks/useBalances';
 import MarketSelector from '../MarketSelector/MarketSelector';
 
 type Side = 'long' | 'short';
-
 const clamp = (n: number, lo: number, hi: number) => Math.min(Math.max(n, lo), hi);
 const pretty = (n: number, dp = 6) =>
   (isFinite(n) ? n : 0).toLocaleString(undefined, { maximumFractionDigits: dp });
-
-// small log helper to keep the console readable
 const rid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-const log = (id: string, label: string, data?: any) => {
-  // eslint-disable-next-line no-console
-  console.log(`[perp:${id}] ${label}`, data ?? '');
-};
+const log = (id: string, label: string, data?: any) => console.log(`[perp:${id}] ${label}`, data ?? '');
 
 export default function PerpOrderTicket() {
   const id = useMemo(rid, []);
   const { withdrawable, positions, refresh } = useBalances();
 
   // ticket state
-  const [side, setSide] = useState<Side>('long');       // long/short
-  const [leverage, setLeverage] = useState<number>(1);  // x1 default
-  const [size, setSize] = useState('');                 // coin size (e.g., 0.05 ETH)
-  const [slippagePct, setSlippagePct] = useState(1);    // %
+  const [side, setSide] = useState<Side>('long');
+  const [leverage, setLeverage] = useState<number>(1);
+  const [size, setSize] = useState('');
+  const [slippagePct, setSlippagePct] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
 
   // quote/mark
-  const [mark, setMark] = useState<number>(0);          // USDC per coin
+  const [mark, setMark] = useState<number>(0);
   const [quoting, setQuoting] = useState(false);
   const [quoteErr, setQuoteErr] = useState<string | null>(null);
 
   // submit state
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [blockMsg, setBlockMsg] = useState<string | null>(null);
 
   // market selection
-  const [symbol, setSymbol] = useState('ETH');                 // traded perp coin
-  const [markets, setMarkets] = useState<string[]>(['ETH']);   // default until fetched
+  const [symbol, setSymbol] = useState('ETH');
+  const [markets, setMarkets] = useState<string[]>(['ETH']);
 
   // fetch markets list once
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const r = await fetch('/api/perps/markets', { cache: 'no-store' });
+        const r = await fetch('/api/perps/market', { cache: 'no-store' });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const j = await r.json();
-        if (!r.ok) throw new Error(j?.error || 'markets error');
         const list = Array.isArray(j?.markets) ? j.markets : [];
         if (alive && list.length) {
           setMarkets(list);
           if (!list.includes(symbol)) setSymbol(list[0]);
         }
       } catch {
-        // keep default ETH
+        // keep default ETH if route not available
       }
     })();
     return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // fetch mark every 6s and on symbol change
+  // fetch mark every 6s and on symbol change (reusing your existing /api/quote shape)
   useEffect(() => {
     let alive = true;
-
     const fetchMark = async () => {
       try {
         setQuoting(true);
         setQuoteErr(null);
-        // reuse your /api/quote by asking for 1 coin → USDC out
         const r = await fetch('/api/quote', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            inputSymbol: symbol,
-            outputSymbol: 'USDC',
-            amount: '1',
-          }),
+          body: JSON.stringify({ inputSymbol: symbol, outputSymbol: 'USDC', amount: '1' }),
         });
         const j = await r.json();
         if (!r.ok) throw new Error(j?.error || j?.detail || 'quote failed');
@@ -93,135 +81,138 @@ export default function PerpOrderTicket() {
         if (alive) setQuoting(false);
       }
     };
-
     fetchMark();
     const t = setInterval(fetchMark, 6000);
-    return () => {
-      alive = false;
-      clearInterval(t);
-    };
+    return () => { alive = false; clearInterval(t); };
   }, [symbol]);
 
   const sizeNum = Number(size || '0');
   const slippage = clamp(slippagePct, 0, 5) / 100;
 
-  // notional and required collateral (simple x1/xL approximation, fees ignored here)
+  // derived
   const notional = useMemo(() => sizeNum * mark, [sizeNum, mark]);
   const requiredCollateral = useMemo(() => (leverage > 0 ? notional / leverage : 0), [notional, leverage]);
 
-  const canSubmit = useMemo(() => {
-    return isFinite(sizeNum) && sizeNum > 0 && mark > 0 && !busy;
-  }, [sizeNum, mark, busy]);
+  const canSubmit = useMemo(
+    () => isFinite(sizeNum) && sizeNum > 0 && mark > 0 && !busy,
+    [sizeNum, mark, busy]
+  );
 
   const sideLabel = side === 'long' ? 'Buy / Long' : 'Sell / Short';
-  const buttonLabel = busy ? 'Submitting…' : (canSubmit ? 'Open Position' : 'Enter an amount');
+  const buttonLabel = busy
+    ? 'Submitting…'
+    : blockMsg
+      ? 'Blocked'
+      : (canSubmit ? 'Open Position' : 'Enter an amount');
+
+  // clear blockers/notices when user edits
+  useEffect(() => { setBlockMsg(null); setNotice(null); }, [symbol, side, size, leverage]);
 
   const doSubmit = useCallback(async () => {
     const reqId = rid();
+    setBusy(true);
+    setBlockMsg(null);
+    setNotice('Placing order…');
+
     try {
-      setBusy(true);
-      setNotice('Placing order…');
-
-      log(reqId, 'submit', { symbol, side, size: sizeNum, leverage, slippage });
-
-      // server expects { coin, side: "buy" | "sell", size, slippage }
       const payload = {
         coin: symbol.toUpperCase(),
         side: side === 'long' ? ('buy' as const) : ('sell' as const),
-        size: sizeNum,       // base coin amount
-        slippage,            // fraction
+        size: Number(size || '0'),
+        slippage,
       };
+      log(reqId, 'submit', payload);
 
-      const r = await fetch('/api/perps/order', {
+      const res = await fetch('/api/perps/order', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const txt = await r.text();
-      let body: any = null;
-      try { body = JSON.parse(txt); } catch { body = { raw: txt }; }
 
-      log(reqId, 'response', { ok: r.ok, status: r.status, body });
+      const txt = await res.text();
+      let body: any; try { body = JSON.parse(txt); } catch { body = { raw: txt }; }
+      log(reqId, 'response', { ok: res.ok, status: res.status, body });
 
-      if (!r.ok) {
-        throw new Error(body?.error || body?.detail || body?.raw || `HTTP ${r.status}`);
+      if (!res.ok) {
+        const msg = body?.error || body?.detail || body?.raw || `Order failed (HTTP ${res.status})`;
+        // user-fixable rejects → block button
+        if (res.status === 409 && /open interest|interest.*cap|ioc|immediately match|liquidity/i.test(msg)) {
+          setBlockMsg(msg);
+          setNotice(null); // avoid double (green) notice
+        } else {
+          setNotice(msg);
+        }
+        return;
       }
 
-      const filled = !!body?.filled;
-      const accepted = !!body?.accepted;
-
+      // success
+      const { accepted = false, filled = false } = body ?? {};
+      setBlockMsg(null);
       if (filled) setNotice('Swap filled!');
       else if (accepted) setNotice('Order placed…checking fill');
       else setNotice('Order sent!');
 
-      // clear input and refresh balances a bit later
       setSize('');
-      setTimeout(() => {
-        log(reqId, 'refreshing balances…');
-        refresh();
-      }, 400);
+      (async () => {
+        for (let i = 0; i < 6; i++) {     // ~3s total
+          await new Promise(r => setTimeout(r, 500));
+          await refresh();
+        }
+      })();
     } catch (e: any) {
       setNotice(e?.message || 'Order failed');
     } finally {
       setBusy(false);
     }
-  }, [symbol, side, sizeNum, slippage, leverage, refresh]);
+  }, [symbol, side, size, slippage, refresh]);
 
-  // simple positions summary for the ticket header
+  // simple positions summary
   const pos = useMemo(() => {
     const p = (positions || []).find(
-      (p) => String(p?.position?.coin ?? '').toUpperCase() === symbol.toUpperCase(),
+      (pp) => String(pp?.position?.coin ?? '').toUpperCase() === symbol.toUpperCase(),
     );
     if (!p) return null;
     const szi = Number(p.position?.szi ?? 0);
     return { szi };
   }, [positions, symbol]);
 
+  // treat notices that mention liquidity / cap as error
+  const isErrorNotice =
+    !!blockMsg || /timeout|failed|reject|unavail|error|liquidity|interest|cap|http/i.test(String(notice || ''));
+
   return (
     <div className={styles.swapContainer}>
       <div className={styles.swapCard}>
-        {/* Settings (gear) */}
+        {/* Settings */}
         <div className={styles.swapSettingsIcon} onClick={() => setShowSettings(true)} title="Settings">
           <img src="/assets/images/gear-8.svg" alt="Settings" className={styles.gearIcon} />
         </div>
 
-        {/* Market selector + Mark */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        {/* Header */}
+        <div className={styles.headerRow}>
           <MarketSelector value={symbol} options={markets} onChange={setSymbol} />
-          <div style={{ fontSize: 12, opacity: 0.75 }}>
+          <div className={styles.markText}>
             Mark: {quoting ? '…' : (mark ? `${pretty(mark, 2)} USDC` : '—')}
           </div>
         </div>
 
         {/* Side selector */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+        <div className={styles.sideButtons}>
           <button
-            className={styles.arrowButton}
-            style={{
-              padding: '8px 10px',
-              background: side === 'long' ? 'rgba(53,196,106,0.15)' : 'rgba(255,255,255,0.06)',
-              color: side === 'long' ? '#35c46a' : '#fff',
-              borderRadius: 8,
-            }}
+            className={`${styles.sideButton} ${side === 'long' ? styles.longActive : ''}`}
             onClick={() => setSide('long')}
           >
             Long
           </button>
           <button
-            className={styles.arrowButton}
-            style={{
-              padding: '8px 10px',
-              background: side === 'short' ? 'rgba(255,86,86,0.12)' : 'rgba(255,255,255,0.06)',
-              color: side === 'short' ? '#ff5656' : '#fff',
-              borderRadius: 8,
-            }}
+            className={`${styles.sideButton} ${side === 'short' ? styles.shortActive : ''}`}
             onClick={() => setSide('short')}
           >
             Short
           </button>
         </div>
 
-        {/* Size input (base coin) */}
+        {/* Size row */}
         <div className={styles.swapRow}>
           <div className={styles.swapLabel}>{sideLabel}</div>
           <div className={styles.swapInputWrap}>
@@ -234,27 +225,20 @@ export default function PerpOrderTicket() {
             />
             <div className={styles.tokenBadge}>{symbol}</div>
           </div>
-          <div className={styles.balanceLine} style={{ marginTop: 6 }}>
-            <span style={{ opacity: 0.8, fontSize: 12 }}>
-              Notional ≈ {pretty(notional, 2)} USDC
-              &nbsp;•&nbsp; Collateral need ≈ {pretty(requiredCollateral, 2)} USDC
-            </span>
+          <div className={styles.balanceLine}>
+            Notional ≈ {pretty(notional, 2)} USDC
+            <span className={styles.dot}>•</span>
+            Collateral need ≈ {pretty(requiredCollateral, 2)} USDC
           </div>
         </div>
 
-        {/* Leverage selector */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0 12px' }}>
-          <div style={{ fontSize: 12, opacity: 0.8 }}>Leverage</div>
+        {/* Leverage */}
+        <div className={styles.leverageGroup}>
+          <div className={styles.leverageLabel}>Leverage</div>
           {[1, 2, 3, 5, 10].map((x) => (
             <button
               key={x}
-              className={styles.arrowButton}
-              style={{
-                padding: '6px 10px',
-                borderRadius: 8,
-                background: leverage === x ? 'rgba(53,196,106,0.15)' : 'rgba(255,255,255,0.06)',
-                color: leverage === x ? '#35c46a' : '#fff',
-              }}
+              className={`${styles.leverageButton} ${leverage === x ? styles.leverageActive : ''}`}
               onClick={() => setLeverage(x)}
             >
               {x}×
@@ -262,36 +246,37 @@ export default function PerpOrderTicket() {
           ))}
         </div>
 
-        {/* Collateral / balances hint */}
-        <div className={styles.balanceLine} style={{ marginBottom: 8 }}>
-          <span style={{ opacity: 0.8, fontSize: 12 }}>
-            Withdrawable: {pretty(withdrawable, 2)} USDC
-            {pos && (
-              <>
-                &nbsp;•&nbsp; Position: {pos.szi > 0 ? '+' : ''}{pretty(pos.szi, 6)} {symbol}
-              </>
-            )}
-          </span>
+        {/* Balances */}
+        <div className={styles.balanceLine}>
+          Withdrawable: {pretty(withdrawable, 2)} USDC
+          {pos && (
+            <>
+              <span className={styles.dot}>•</span>
+              Position: {pos.szi > 0 ? '+' : ''}{pretty(pos.szi, 6)} {symbol}
+            </>
+          )}
         </div>
 
         {/* Notices */}
-        {!!notice && (
-          <div
-            className={`${styles.notice} ${
-              /timeout|failed|reject|unavail|error/i.test(notice) ? styles.error : styles.success
-            }`}
-          >
+        {blockMsg && (
+          <div className={`${styles.notice} ${styles.error}`} role="alert">
+            {blockMsg}
+          </div>
+        )}
+        {notice && !blockMsg && (
+          <div className={`${styles.notice} ${isErrorNotice ? styles.error : styles.success}`}>
             {notice}
           </div>
         )}
-        {!!quoteErr && <div className={`${styles.notice} ${styles.error}`}>{quoteErr}</div>}
+        {quoteErr && <div className={`${styles.notice} ${styles.error}`}>{quoteErr}</div>}
 
         {/* Submit */}
         <button
           className={styles.swapButton}
           onClick={doSubmit}
-          disabled={!canSubmit}
-          title={!canSubmit ? 'Enter amount' : 'Open position'}
+          disabled={!canSubmit || !!blockMsg}
+          title={!canSubmit ? 'Enter amount' : blockMsg ? blockMsg : 'Open position'}
+          aria-disabled={!canSubmit || !!blockMsg}
         >
           {buttonLabel}
         </button>

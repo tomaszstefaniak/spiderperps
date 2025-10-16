@@ -1,0 +1,50 @@
+.main {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Area under the Header — centers the whole stack vertically & horizontally */
+.content {
+  flex: 1;
+  display: flex;
+  justify-content: center;   /* horizontal center */
+  align-items: center;       /* vertical center  */
+  padding: 24px;
+  /* Optional: if your header is tall, you can use min-height:
+     min-height: calc(100vh - 64px); */
+}
+
+/* Single centered column with gaps */
+.stack {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;       /* keep children centered */
+  gap: 24px;
+}
+
+/* Ticket width (matches card) */
+.ticketWrap {
+  width: 100%;
+  max-width: 420px;
+}
+
+/* Positions width: wider but still centered underneath */
+.positionsWrap {
+  width: 100%;
+  max-width: 960px;          /* set to 420px if you want same width as ticket */
+}
+
+/* Medium screens */
+@media (max-width: 1200px) {
+  .content { padding: 20px; }
+  .positionsWrap { max-width: 860px; }
+}
+
+/* Small screens: full width with padding */
+@media (max-width: 900px) {
+  .content { padding: 16px; }
+  .ticketWrap { max-width: 100%; }
+  .positionsWrap { max-width: 100%; }
+}

@@ -1,26 +1,25 @@
-// src/app/page.tsx
 'use client';
 
 import Header from './components/Header/Header';
 import PerpOrderTicket from './components/PerpOrderTicket/PerpOrderTicket';
 import PositionsTable from './components/Positions/PositionsTable';
+import styles from './page.module.css';
 
 export default function Page() {
   return (
-    <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <main className={styles.main}>
       <Header />
-      <div
-        style={{
-          flex: 1,
-          display: 'grid',
-          gridTemplateColumns: 'minmax(420px, 460px) 1fr',
-          gap: 24,
-          alignItems: 'start',
-          padding: 24,
-        }}
-      >
-        <PerpOrderTicket />
-        <PositionsTable />
+
+      <div className={styles.content}>
+        <div className={styles.stack}>
+          <div className={styles.ticketWrap}>
+            <PerpOrderTicket />
+          </div>
+
+          <div className={styles.positionsWrap}>
+            <PositionsTable />
+          </div>
+        </div>
       </div>
     </main>
   );

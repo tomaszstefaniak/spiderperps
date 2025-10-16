@@ -1,0 +1,91 @@
+/* Card shared look */
+.swapCard {
+  width: 100%;
+  background: rgba(31,31,31,0.88);
+  color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+/* Section header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  font-weight: 600;
+}
+
+/* wider first column for icon + text */
+.headerRow {
+  display: grid;
+  grid-template-columns: 160px 120px 120px 120px 120px 120px 120px;
+  gap: 8px;
+  font-size: 13px;
+  opacity: 0.8;
+  padding: 0 12px 8px 12px;
+}
+
+/* rows container (optional scroll) */
+.rows {
+  padding: 0 12px 12px 12px;
+  max-height: 60vh;
+  overflow: auto;
+}
+
+/* a data row */
+.row {
+  display: grid;
+  grid-template-columns: 160px 120px 120px 120px 120px 120px 120px;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  align-items: center;
+  font-size: 13px;
+}
+
+/* Market cell with coin icon */
+.marketCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: visible; /* don’t clip the icon */
+}
+
+.coinIcon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  object-fit: contain;
+  border-radius: 3px;
+}
+
+/* pill button */
+.pillButton,
+.smallPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  font-size: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.pillButton:hover,
+.smallPill:hover {
+  filter: brightness(1.05);
+}
+.pillButton:disabled,
+.smallPill:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* green/red helpers */
+.green { color: #35c46a; }
+.red   { color: #e25555; }

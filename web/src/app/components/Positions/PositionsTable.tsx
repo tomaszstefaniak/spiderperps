@@ -1,9 +1,8 @@
-// src/app/components/Positions/PositionsTable.tsx
 'use client';
 
 import React, { useState } from 'react';
 import { useBalances } from '@/hooks/useBalances';
-import styles from '../SwapPanel/SwapPanel.module.css';
+import styles from './PositionsTable.module.css';
 
 const pretty = (n: number, dp = 4) =>
   (isFinite(n) ? n : 0).toLocaleString(undefined, { maximumFractionDigits: dp });
@@ -37,6 +36,7 @@ export default function PositionsTable() {
   if (!positions.length) {
     return (
       <div className={styles.swapCard} style={{ marginTop: 16 }}>
+        <div className={styles.header}>Positions</div>
         <div style={{ padding: 12, fontSize: 14, opacity: 0.8 }}>No open positions.</div>
       </div>
     );
@@ -44,39 +44,57 @@ export default function PositionsTable() {
 
   return (
     <div className={styles.swapCard} style={{ marginTop: 16 }}>
-      <div style={{ padding: 12 }}>
-        <div style={{ fontWeight: 600, marginBottom: 8 }}>Positions</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '120px 120px 120px 120px 120px 120px 120px', gap: 8, fontSize: 13, opacity: 0.8 }}>
-          <div>Market</div>
-          <div>Size</div>
-          <div>Entry</div>
-          <div>Mark</div>
-          <div>Notional</div>
-          <div>uPnL</div>
-          <div></div>
-        </div>
+      <div className={styles.header}>Positions</div>
+
+      <div className={styles.headerRow}>
+        <div>Market</div>
+        <div>Size</div>
+        <div>Entry</div>
+        <div>Mark</div>
+        <div>Notional</div>
+        <div>uPnL</div>
+        <div></div>
+      </div>
+
+      <div className={styles.rows}>
         {positions.map((p) => {
+          const coin = String(p.coin || '').toUpperCase();
           const szi = Number(p.szi || 0);
           const entry = Number(p.entryPx || 0);
           const mark = Number(p.markPx || p.indexPx || 0);
           const notional = Math.abs(szi) * (mark || 0);
           const upnl = Number(p.unrealizedPnl || 0);
-          const signColor = szi > 0 ? '#35c46a' : szi < 0 ? '#e25555' : 'inherit';
+          const signColor = szi > 0 ? styles.green : szi < 0 ? styles.red : '';
+
+          const iconUrl = `https://app.hyperliquid.xyz/coins/${coin}.svg`;
+
           return (
-            <div key={p.coin} style={{ display: 'grid', gridTemplateColumns: '120px 120px 120px 120px 120px 120px 120px', gap: 8, padding: '8px 0', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-              <div>{p.coin}</div>
-              <div style={{ color: signColor }}>{pretty(szi, 6)}</div>
+            <div key={p.coin} className={styles.row}>
+              <div className={styles.marketCell}>
+                <img
+                  className={styles.coinIcon}
+                  src={iconUrl}
+                  alt=""
+                  aria-hidden="true"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+                <span>{coin}</span>
+              </div>
+
+              <div className={signColor}>{pretty(szi, 6)}</div>
               <div>{entry ? pretty(entry, 2) : '—'}</div>
               <div>{mark ? pretty(mark, 2) : '—'}</div>
               <div>{notional ? pretty(notional, 2) : '—'} USDC</div>
-              <div style={{ color: upnl >= 0 ? '#35c46a' : '#e25555' }}>{pretty(upnl, 2)} USDC</div>
+              <div className={upnl >= 0 ? styles.green : styles.red}>{pretty(upnl, 2)} USDC</div>
               <div>
                 <button
                   className={styles.smallPill}
-                  onClick={() => closePos(p.coin, szi)}
-                  disabled={busyOid === p.coin}
+                  onClick={() => closePos(coin, szi)}
+                  disabled={busyOid === coin}
                 >
-                  {busyOid === p.coin ? 'Closing…' : 'Close'}
+                  {busyOid === coin ? 'Closing…' : 'Close'}
                 </button>
               </div>
             </div>

@@ -1,0 +1,55 @@
+.container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.label {
+  font-weight: 600;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.selectWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* the small coin icon shown inside the select */
+.selectedIcon {
+  position: absolute;
+  left: 10px;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  border-radius: 3px;
+  object-fit: contain;
+}
+
+/* extra left padding so text doesn’t overlap the icon */
+.select {
+  appearance: none;
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 6px 28px 6px 32px; /* ← room for icon */
+  outline: none;
+  font-size: 13px;
+  line-height: 1.1;
+}
+
+.select:focus {
+  box-shadow: 0 0 0 2px rgba(112, 236, 168, 0.25);
+  border-color: rgba(112, 236, 168, 0.35);
+}
+
+.chevron {
+  position: absolute;
+  right: 8px;
+  pointer-events: none;
+  font-size: 10px;
+  opacity: 0.7;
+  transform: translateY(1px);
+}

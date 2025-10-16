@@ -1,0 +1,174 @@
+/* Variables are scoped to the card so CSS Modules stays happy */
+.swapCard {
+  --card-bg: rgba(31,31,31,0.88);
+  --accent: #72f2b6;
+  --text: #ffffff;
+  --muted: #cbd5e1;
+  --long: #35c46a;
+  --short: #ff5656;
+
+  position: relative;
+  width: 100%;
+  max-width: 420px;                 /* <— was fixed 360px */
+  padding: 16px;
+  background: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+/* Layout */
+.swapContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;              /* <— left-align in column */
+  gap: 12px;
+  position: relative;
+}
+
+/* Header */
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.markText {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+/* Gear icon */
+.swapSettingsIcon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  cursor: pointer;
+  opacity: 0.85;
+  transition: opacity 0.15s ease;
+}
+.swapSettingsIcon:hover { opacity: 1; }
+
+.gearIcon {
+  width: 18px;
+  height: 18px;
+}
+
+/* Side buttons */
+.sideButtons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.sideButton {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+  border: none;
+  cursor: pointer;
+}
+
+.longActive  { background: rgba(53,196,106,0.15); color: var(--long); }
+.shortActive { background: rgba(255,86,86,0.12); color: var(--short); }
+
+/* Size input row */
+.swapRow { margin: 8px 0; }
+
+.swapLabel {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-bottom: 6px;
+}
+
+.swapInputWrap {
+  display: flex;
+  align-items: center;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 8px 10px;
+}
+
+.swapInput {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 16px;
+}
+
+.tokenBadge {
+  margin-left: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+}
+
+/* Meta lines */
+.balanceLine {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.dot { margin: 0 6px; opacity: 0.6; }
+
+/* Leverage */
+.leverageGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.leverageLabel {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.leverageButton {
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+  border: none;
+  cursor: pointer;
+}
+
+.leverageActive {
+  background: rgba(53,196,106,0.15);
+  color: var(--long);
+}
+
+/* Notices */
+.notice {
+  width: 100%;
+  margin: 6px 0 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.success { background: rgba(53,196,106,0.12); color: var(--long); }
+.error   { background: rgba(255,86,86,0.12); color: var(--short); }
+
+/* Primary action */
+.swapButton {
+  width: 100%;
+  padding: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: filter 0.2s;
+}
+
+.swapButton:hover:not(:disabled) { filter: brightness(0.95); }
+.swapButton:disabled { opacity: 0.6; cursor: not-allowed; }
