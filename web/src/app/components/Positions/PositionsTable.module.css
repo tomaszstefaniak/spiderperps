@@ -1,57 +1,45 @@
-/* Card shared look */
-.swapCard {
-  width: 100%;
-  background: rgba(31,31,31,0.88);
-  color: #fff;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-}
+/* Fits the ticket column; outer chrome comes from ExpandableCard */
+.table { width: 100%; }
 
-/* Section header */
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px;
-  font-weight: 600;
-}
-
-/* wider first column for icon + text */
+/* Sticky header matches card bg + stays visible when list scrolls */
 .headerRow {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(31,31,31,0.88);
   display: grid;
-  grid-template-columns: 160px 120px 120px 120px 120px 120px 120px;
+  grid-template-columns: 1.1fr 0.8fr 0.9fr 0.9fr 1.1fr 1.1fr auto;
   gap: 8px;
   font-size: 13px;
-  opacity: 0.8;
-  padding: 0 12px 8px 12px;
+  color: var(--muted, #cbd5e1);
+  padding: 6px 0 8px 0;
 }
 
-/* rows container (optional scroll) */
+/* Rows (scroll area inside Expandable) */
 .rows {
-  padding: 0 12px 12px 12px;
   max-height: 60vh;
   overflow: auto;
+  padding-top: 2px;
 }
 
-/* a data row */
 .row {
   display: grid;
-  grid-template-columns: 160px 120px 120px 120px 120px 120px 120px;
+  grid-template-columns: 1.1fr 0.8fr 0.9fr 0.9fr 1.1fr 1.1fr auto;
   gap: 8px;
   padding: 8px 0;
   border-top: 1px solid rgba(255,255,255,0.06);
   align-items: center;
   font-size: 13px;
 }
+.row:first-child { border-top: 0; }
 
-/* Market cell with coin icon */
+/* Market cell */
 .marketCell {
   display: flex;
   align-items: center;
   gap: 8px;
-  overflow: visible; /* don’t clip the icon */
+  overflow: visible;
 }
-
 .coinIcon {
   width: 16px;
   height: 16px;
@@ -60,8 +48,17 @@
   border-radius: 3px;
 }
 
-/* pill button */
-.pillButton,
+/* Numeric cells: right-aligned + tabular numerics for stable columns */
+.num,
+.right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Actions column keeps button snug */
+.actCell { display: flex; justify-content: flex-end; }
+
+/* Pill button matches your UI */
 .smallPill {
   display: inline-flex;
   align-items: center;
@@ -76,16 +73,25 @@
   cursor: pointer;
   transition: filter 0.15s ease;
 }
-.pillButton:hover,
-.smallPill:hover {
-  filter: brightness(1.05);
-}
-.pillButton:disabled,
-.smallPill:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.smallPill:hover { filter: brightness(1.05); }
+.smallPill:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Empty state */
+.empty {
+  font-size: 14px;
+  opacity: 0.8;
+  padding: 6px 0;
 }
 
-/* green/red helpers */
-.green { color: #35c46a; }
-.red   { color: #e25555; }
+/* Reuse ticket palette via vars (fallbacks kept) */
+.green { color: var(--long, #35c46a); }
+.red   { color: var(--short, #ff5656); }
+
+/* Tight mode: on narrower panes hide Entry to avoid cramping */
+@media (max-width: 480px) {
+  .headerRow,
+  .row {
+    grid-template-columns: 1.1fr 0.9fr 0.9fr 1.1fr 1.1fr auto; /* no Entry col */
+  }
+  .hideSm { display: none; }
+}

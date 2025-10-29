@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import styles from './Header.module.css';
 import { BACKGROUND_IMAGE, DEFAULT_BACKGROUND } from '@utils/config';
+import { useWatchlist } from '@/app/context/WatchlistContext';
 
 const mydexLogo = '/assets/logo/eth_logo_mini_white.svg';
 const gearIcon = '/assets/images/gear-8.svg';
@@ -13,13 +14,18 @@ type Health = {
   trading_enabled?: boolean;
 };
 
-export default function Header() {
+interface HeaderProps {
+  onFollow?: (address: string) => void;
+}
+
+export default function Header({ onFollow }: HeaderProps) {
   const [showGearPopup, setShowGearPopup] = useState(false);
   const [health, setHealth] = useState<Health | null>(null);
   const [healthErr, setHealthErr] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState('');  // search input state
 
-  // Apply the single background on mount
-  useEffect(() => {
+  // Apply background image on mount
+  React.useEffect(() => {
     const bg = DEFAULT_BACKGROUND || BACKGROUND_IMAGE?.[0] || '';
     if (bg && typeof document !== 'undefined') {
       document.body.style.backgroundImage = `url(${bg})`;
@@ -30,8 +36,8 @@ export default function Header() {
     }
   }, []);
 
-  // Health ping
-  useEffect(() => {
+  // Health ping (check connection status)
+  React.useEffect(() => {
     let alive = true;
     (async () => {
       try {
@@ -51,16 +57,28 @@ export default function Header() {
     health?.ok ? 'Connected' : 'Unknown';
   const net = health?.network ? (health.network === 'testnet' ? 'testnet' : 'mainnet') : '';
 
+  // Determine if current search term is a valid address (simple 0x... pattern)
+  const isValidAddress = useMemo(() => /^0x[0-9A-Fa-f]{40}$/.test(searchTerm.trim()), [searchTerm]);
+  const { watch, isWatched } = useWatchlist();
+
+  const handleFollow = () => {
+    if (!isValidAddress) return;
+    if (!isWatched(searchTerm.trim())) {
+      watch(searchTerm.trim());
+    }
+    setSearchTerm('');
+  };
+
   return (
     <div className={styles.headerContainer}>
-      {/* LEFT */}
+      {/* LEFT: Logo and section button */}
       <div className={styles.headerLeft}>
         <img src={mydexLogo} alt="logo" className={styles.headerLogo} />
         <span className={styles.headerAppName}>mydex</span>
         <button className={styles.headerButton}>Perps</button>
       </div>
 
-      {/* CENTER (search – UI only for now) */}
+      {/* CENTER: Search bar for addresses */}
       <div className={styles.headerCenter}>
         <div className={styles.headerSearchContainer}>
           <img
@@ -70,17 +88,25 @@ export default function Header() {
           />
           <input
             className={styles.headerSearchInput}
-            placeholder="Search token or address"
-            readOnly
-            onClick={() => {}}
-            aria-label="Open token search"
+            placeholder="Search address to follow"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            aria-label="Search address input"
           />
+          {isValidAddress && (
+            <button 
+              className={styles.followButton} 
+              onClick={handleFollow}
+            >
+              Follow
+            </button>
+          )}
         </div>
       </div>
 
-      {/* RIGHT */}
+      {/* RIGHT: Settings gear and status display */}
       <div className={styles.headerRight}>
-        {/* Settings */}
+        {/* Settings gear icon */}
         <button
           className={styles.headerButton}
           onClick={() => setShowGearPopup(v => !v)}
@@ -98,7 +124,6 @@ export default function Header() {
                 {status}{net ? ` · ${net}` : ''}
               </div>
             </div>
-
             <div className={styles.gearSection}>
               <button
                 className={styles.cancelBtn}
@@ -110,7 +135,7 @@ export default function Header() {
           </div>
         )}
 
-        {/* Status pill on the far right */}
+        {/* Connection status pill on far right */}
         <div style={{ color: health?.ok ? '#72f2b6' : '#fca5a5' }}>
           {status}{net ? ` · ${net}` : ''}
         </div>

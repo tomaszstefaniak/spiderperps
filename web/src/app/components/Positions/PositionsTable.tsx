@@ -6,6 +6,8 @@ import styles from './PositionsTable.module.css';
 
 const pretty = (n: number, dp = 4) =>
   (isFinite(n) ? n : 0).toLocaleString(undefined, { maximumFractionDigits: dp });
+const signed = (n: number, dp = 2) =>
+  `${n > 0 ? '+' : ''}${pretty(n, dp)}`;
 
 export default function PositionsTable() {
   const { positions, refresh } = useBalances();
@@ -15,7 +17,7 @@ export default function PositionsTable() {
     if (!szi) return;
     setBusyOid(coin);
     try {
-      const side = szi > 0 ? 'sell' : 'buy'; // close
+      const side = szi > 0 ? 'sell' : 'buy';
       const size = Math.abs(szi);
       const r = await fetch('/api/perps/order', {
         method: 'POST',
@@ -34,25 +36,19 @@ export default function PositionsTable() {
   };
 
   if (!positions.length) {
-    return (
-      <div className={styles.swapCard} style={{ marginTop: 16 }}>
-        <div className={styles.header}>Positions</div>
-        <div style={{ padding: 12, fontSize: 14, opacity: 0.8 }}>No open positions.</div>
-      </div>
-    );
+    return <div className={styles.empty}>No open positions.</div>;
   }
 
   return (
-    <div className={styles.swapCard} style={{ marginTop: 16 }}>
-      <div className={styles.header}>Positions</div>
-
+    <div className={styles.table}>
+      {/* Headers */}
       <div className={styles.headerRow}>
         <div>Market</div>
-        <div>Size</div>
-        <div>Entry</div>
-        <div>Mark</div>
-        <div>Notional</div>
-        <div>uPnL</div>
+        <div className={styles.right}>Size</div>
+        <div className={`${styles.right} ${styles.hideSm}`}>Entry</div>
+        <div className={styles.right}>Mark</div>
+        <div className={styles.right}>Exposure (USDC)</div>
+        <div className={styles.right}>uPnL (USDC)</div>
         <div></div>
       </div>
 
@@ -76,23 +72,24 @@ export default function PositionsTable() {
                   src={iconUrl}
                   alt=""
                   aria-hidden="true"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).style.display = 'none';
-                  }}
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                 />
                 <span>{coin}</span>
               </div>
 
-              <div className={signColor}>{pretty(szi, 6)}</div>
-              <div>{entry ? pretty(entry, 2) : '—'}</div>
-              <div>{mark ? pretty(mark, 2) : '—'}</div>
-              <div>{notional ? pretty(notional, 2) : '—'} USDC</div>
-              <div className={upnl >= 0 ? styles.green : styles.red}>{pretty(upnl, 2)} USDC</div>
-              <div>
+              <div className={`${styles.num} ${signColor}`}>{pretty(szi, 6)}</div>
+              <div className={`${styles.num} ${styles.hideSm}`}>{entry ? pretty(entry, 2) : '—'}</div>
+              <div className={styles.num}>{mark ? pretty(mark, 2) : '—'}</div>
+              <div className={styles.num}>{notional ? pretty(notional, 2) : '—'}</div>
+              <div className={`${styles.num} ${upnl >= 0 ? styles.green : styles.red}`}>
+                {signed(upnl, 2)}
+              </div>
+              <div className={styles.actCell}>
                 <button
                   className={styles.smallPill}
                   onClick={() => closePos(coin, szi)}
                   disabled={busyOid === coin}
+                  title="Close position"
                 >
                   {busyOid === coin ? 'Closing…' : 'Close'}
                 </button>

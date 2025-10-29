@@ -1,5 +1,5 @@
 .headerContainer {
-  position: absolute;
+  position: sticky;
   top: 0;
   left: 0;
   right: 0;
@@ -95,9 +95,11 @@
 }
 
 .headerSearchContainer {
-  width: 350px;
+  width: 400px;
   max-width: 100%;
   position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .headerSearchIcon {
@@ -111,7 +113,8 @@
 }
 
 .headerSearchInput {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   background: rgba(31, 31, 31, 0.8);
   color: #fff;
   border: none;
@@ -125,7 +128,22 @@
   color: #aaa;
 }
 
-/* Wallet (kept as-is if you use it elsewhere) */
+/* Follow button in search bar */
+.followButton {
+  background: #72f2b6;
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  height: 36px;
+  padding: 0 0.75rem;
+  font-weight: 550;
+  cursor: pointer;
+}
+.followButton:hover {
+  filter: brightness(0.95);
+}
+
+/* Wallet/Account menu styles (unchanged) */
 .headerWalletContainer { position: relative; }
 
 .headerWalletButton {
@@ -187,7 +205,7 @@
   padding: 0.3rem 0.75rem;
 }
 
-/* Optional spinner styles kept for future use */
+/* Optional spinner styles for future use */
 .searchSpinner {
   position: absolute;
   right: 10px;

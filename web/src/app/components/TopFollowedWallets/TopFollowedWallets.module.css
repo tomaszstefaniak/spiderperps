@@ -1,0 +1,58 @@
+/* Bare content — no background, no box, so it blends with ExpandableCard */
+.listRows {
+  padding: 2px 0;
+}
+
+/* Rows match the two-column header in ExpandableCard: 1fr | auto */
+.walletRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto; /* keeps ellipsis working */
+  align-items: center;
+  padding: 6px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 12.5px;
+}
+.walletRow:first-child { border-top: 0; }
+
+/* Address (left column) — nudge left to sit under the header label */
+.link {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;        /* was center */
+  padding-left: 10px;      /* tweak: 6–12px to taste */
+  padding-right: 6px;
+  color: #72f2b6;
+  text-decoration: none;
+}
+.link:hover { text-decoration: underline; }
+
+/* Followers pill (right column) — stay aligned right, no extra gap */
+.count {
+  justify-self: end;       /* anchor to the right column edge */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  padding: 3px 6px;
+  line-height: 1;
+  border-radius: 9999px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #cbd5e1;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  margin-right: 1.6rem;
+}
+
+.headerRight {
+  min-width: 36px;
+  text-align: center;
+}
+
+.countActive {
+  background: rgba(114, 242, 182, 0.12);
+  border-color: rgba(114, 242, 182, 0.35);
+  color: #72f2b6;
+}

@@ -1,50 +1,79 @@
 .main {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+  --header-h: 20px;
+  --header-gap: 10px;
 }
 
-/* Area under the Header — centers the whole stack vertically & horizontally */
 .content {
-  flex: 1;
-  display: flex;
-  justify-content: center;   /* horizontal center */
-  align-items: center;       /* vertical center  */
-  padding: 24px;
-  /* Optional: if your header is tall, you can use min-height:
-     min-height: calc(100vh - 64px); */
+  padding-top: calc(var(--header-h) + var(--header-gap));
 }
 
-/* Single centered column with gaps */
+/* Stack of sections */
 .stack {
   width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;       /* keep children centered */
-  gap: 24px;
+  align-items: center;
+
+  --panel-w: 400px;     /* ticket width */
+  --sidebar-w: 260px;   /* each sidebar width */
+  --col-gap: 6px;       /* gap between columns */
+
+  gap: var(--row-gap);
 }
 
-/* Ticket width (matches card) */
+/* Top row (3 columns) */
+.topRow {
+  display: flex;
+  gap: var(--col-gap);
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 45vh;
+  width: 100%;
+}
+
+/* Sidebars */
+.sidebarLeft, .sidebarRight {
+  width: var(--sidebar-w);
+  max-width: var(--sidebar-w);
+}
+
+/* Ticket column */
 .ticketWrap {
-  width: 100%;
-  max-width: 420px;
+  flex: 0 0 var(--panel-w);
+  width: var(--panel-w);
+  max-width: 100%;
 }
 
-/* Positions width: wider but still centered underneath */
+/* Positions: SAME overall width as the 3-column row (L + gap + center + gap + R) */
 .positionsWrap {
+  width: calc(var(--sidebar-w) + var(--col-gap) + var(--panel-w) + var(--col-gap) + var(--sidebar-w));
+  max-width: 100%;
+  margin: 6px auto 0;
+}
+
+/* Ensure the Expandable fills that width even when collapsed */
+.positionsWrap > * {
+  display: block;
   width: 100%;
-  max-width: 960px;          /* set to 420px if you want same width as ticket */
 }
 
-/* Medium screens */
-@media (max-width: 1200px) {
-  .content { padding: 20px; }
-  .positionsWrap { max-width: 860px; }
-}
-
-/* Small screens: full width with padding */
+/* Mobile */
 @media (max-width: 900px) {
   .content { padding: 16px; }
-  .ticketWrap { max-width: 100%; }
-  .positionsWrap { max-width: 100%; }
+  .topRow { min-height: 46vh; }
+
+  /* sidebars hidden → positions should be full width */
+  .sidebarLeft, .sidebarRight { display: none; }
+
+  .ticketWrap {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .positionsWrap {
+    width: 100%;
+    max-width: 100%;
+    margin: 6px 0 0;
+  }
 }

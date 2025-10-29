@@ -1,0 +1,160 @@
+/* Overlay centered regardless of page layout */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: grid;
+  place-items: center;     /* centers both axes */
+  z-index: 99999;          /* above everything */
+  padding: 12px;           /* keep off edges on tiny screens */
+  overscroll-behavior: contain;
+}
+
+/* Narrow container, bigger visuals */
+.modal {
+  margin: 0;
+  background: #1e1e1e;
+  color: #fff;
+  width: 300px;            /* narrow */
+  height: 70vh;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 35px rgba(0,0,0,0.45);
+}
+
+.header {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0.9rem 0.9rem 0.65rem;
+}
+.header h3 { 
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  font-size: 17px;
+  line-height: 1;
+  pointer-events: none;          /* avoid blocking button clicks */
+}
+
+.close {
+  position: relative;
+  left: 7.8rem;
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+.close:hover { color: #fff; }
+
+.search {
+  margin: 0 0.9rem 0.65rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid #444;
+  background: #2a2a2a;
+  color: #fff;
+  outline: none;
+}
+.search::placeholder { color: #888; }
+
+/* Quick chips row (BTC/ETH/SOL) */
+.quickRow {
+  display: flex;
+  gap: 0.55rem;
+  padding: 0 0.9rem 0.7rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.quickRow::-webkit-scrollbar { display: none; }
+
+.chip {
+  display: inline-grid;
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 0.4rem;
+  background: #282828;
+  border: 1px solid #383838;
+  color: #fff;
+  padding: 0.4rem 0.7rem;
+  border-radius: 9999px;
+  cursor: pointer;
+  font-size: 0.92rem;
+  white-space: nowrap;
+  transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.chip:hover { background: #333; }
+.chipIcon { width: 20px; height: 20px; border-radius: 4px; object-fit: contain; }
+.chipActive {
+  background: rgba(114,242,182,0.12);
+  border-color: rgba(114,242,182,0.35);
+}
+
+/* Scroll area */
+.list {
+  flex: 1 1 0;
+  min-height: 240px;
+  padding: 8px 0.9rem 0.9rem;
+  scroll-padding-top: 8px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+.list::-webkit-scrollbar { width: 6px; }
+.list::-webkit-scrollbar-track { background: transparent; }
+.list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 6px; }
+.list:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.28); }
+
+/* Rows */
+.row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 0.6rem 0.7rem;
+  background: transparent;
+  border: none;
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: background 0.2s;
+}
+.row:hover { background: #333; }
+
+.rowIcon {
+  width: 36px; height: 36px;
+  border-radius: 6px;
+  object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+.rowText { display: grid; gap: 3px; }
+.rowSymbol {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  line-height: 1.1;
+}
+.rowSub {
+  font-size: 14px;
+  color: #cbd5e1;
+  opacity: 0.95;
+}
+
+.active {
+  background: rgba(114,242,182,0.10);
+  outline: 1px solid rgba(114,242,182,0.35);
+}
+
+.empty { padding: 12px; text-align: center; color: #9CA3AF; }
+
+@media (max-width: 420px) {
+  .modal { width: 92vw; }
+}

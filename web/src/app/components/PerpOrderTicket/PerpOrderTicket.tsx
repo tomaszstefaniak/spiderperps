@@ -5,6 +5,9 @@ import styles from './PerpOrderTicket.module.css';
 import SwapSettingsModal from '../SwapSettingsModal/SwapSettingsModal';
 import { useBalances } from '@/hooks/useBalances';
 import MarketSelector from '../MarketSelector/MarketSelector';
+import { useStickyNumber, fmtUsd } from '../_shared/useStickyNumber';
+import MarkTicker from './MarkTicker';
+import SwapInfoBox from '../SwapInfoBox/SwapInfoBox';
 
 type Side = 'long' | 'short';
 const clamp = (n: number, lo: number, hi: number) => Math.min(Math.max(n, lo), hi);
@@ -37,6 +40,10 @@ export default function PerpOrderTicket() {
   // market selection
   const [symbol, setSymbol] = useState('ETH');
   const [markets, setMarkets] = useState<string[]>(['ETH']);
+
+  const stickyMark = useStickyNumber(mark);
+
+  const [maxLeverage, setMaxLeverage] = useState<number>(10);
 
   // fetch markets list once
   useEffect(() => {
@@ -86,19 +93,58 @@ export default function PerpOrderTicket() {
     return () => { alive = false; clearInterval(t); };
   }, [symbol]);
 
-  const sizeNum = Number(size || '0');
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch(
+          `/api/perps/max-leverage?symbol=${encodeURIComponent(symbol)}`,
+          { cache: 'no-store' }
+        );
+        const j = await r.json();
+        const mx = Math.max(1, Number(j?.max ?? 10));
+        if (alive) setMaxLeverage(mx);
+      } catch {
+        if (alive) setMaxLeverage(10);
+      }
+    })();
+    return () => { alive = false; };
+  }, [symbol]);
+
+  // keep current leverage within the new cap
+  useEffect(() => {
+    setLeverage((prev) => Math.min(prev, maxLeverage));
+  }, [maxLeverage]);
+
   const slippage = clamp(slippagePct, 0, 5) / 100;
 
-  // derived
-  const notional = useMemo(() => sizeNum * mark, [sizeNum, mark]);
-  const requiredCollateral = useMemo(() => (leverage > 0 ? notional / leverage : 0), [notional, leverage]);
+  const [sizeMode, setSizeMode] = useState<'base' | 'quote'>('base');
+
+  const sizeNum = Number(size || '0');
+
+  const baseSize = useMemo(() => {
+    if (sizeMode === 'base') return sizeNum;              // user typed base units
+    if (mark <= 0 || leverage <= 0) return 0;
+    // user typed collateral → base size = (collateral * leverage) / price
+    return (sizeNum * leverage) / mark;
+  }, [sizeNum, sizeMode, mark, leverage]);
+
+  const notional = useMemo(() => {
+    if (mark <= 0) return 0;
+    // base mode: notional = base * price; quote mode: notional = collateral * leverage
+    return sizeMode === 'base' ? sizeNum * mark : sizeNum * leverage;
+  }, [sizeNum, sizeMode, mark, leverage]);
+
+  const requiredCollateral = useMemo(() => {
+    // base mode: derive; quote mode: input IS the collateral
+    return sizeMode === 'base' ? (leverage > 0 ? notional / leverage : 0) : sizeNum;
+  }, [sizeMode, notional, leverage, sizeNum]);
 
   const canSubmit = useMemo(
     () => isFinite(sizeNum) && sizeNum > 0 && mark > 0 && !busy,
     [sizeNum, mark, busy]
   );
 
-  const sideLabel = side === 'long' ? 'Buy / Long' : 'Sell / Short';
   const buttonLabel = busy
     ? 'Submitting…'
     : blockMsg
@@ -118,7 +164,7 @@ export default function PerpOrderTicket() {
       const payload = {
         coin: symbol.toUpperCase(),
         side: side === 'long' ? ('buy' as const) : ('sell' as const),
-        size: Number(size || '0'),
+        size: baseSize,
         slippage,
       };
       log(reqId, 'submit', payload);
@@ -166,131 +212,249 @@ export default function PerpOrderTicket() {
     }
   }, [symbol, side, size, slippage, refresh]);
 
-  // simple positions summary
+  // keep pos for the per-market Position line
   const pos = useMemo(() => {
     const p = (positions || []).find(
       (pp) => String(pp?.position?.coin ?? '').toUpperCase() === symbol.toUpperCase(),
     );
     if (!p) return null;
-    const szi = Number(p.position?.szi ?? 0);
-    return { szi };
+    const szi  = Number(p.position?.szi ?? 0);
+    const uPnl = Number(p.position?.uPnl ?? p.position?.uPnlUsd ?? p.position?.unrealizedPnl ?? 0);
+    return { szi, uPnl: Number.isFinite(uPnl) ? uPnl : 0 };
   }, [positions, symbol]);
+
+  // NEW: sum uPnL across *all* positions
+  const allUPnL = useMemo(() => {
+    return (positions || []).reduce((sum, pp) => {
+      const v = Number(pp?.position?.uPnl ?? pp?.position?.uPnlUsd ?? pp?.position?.unrealizedPnl ?? 0);
+      return sum + (Number.isFinite(v) ? v : 0);
+    }, 0);
+  }, [positions]);
+
+  const totalBalance = (Number(withdrawable) || 0) + allUPnL;
 
   // treat notices that mention liquidity / cap as error
   const isErrorNotice =
     !!blockMsg || /timeout|failed|reject|unavail|error|liquidity|interest|cap|http/i.test(String(notice || ''));
 
-  return (
-    <div className={styles.swapContainer}>
-      <div className={styles.swapCard}>
-        {/* Settings */}
-        <div className={styles.swapSettingsIcon} onClick={() => setShowSettings(true)} title="Settings">
-          <img src="/assets/images/gear-8.svg" alt="Settings" className={styles.gearIcon} />
-        </div>
-
-        {/* Header */}
-        <div className={styles.headerRow}>
-          <MarketSelector value={symbol} options={markets} onChange={setSymbol} />
-          <div className={styles.markText}>
-            Mark: {quoting ? '…' : (mark ? `${pretty(mark, 2)} USDC` : '—')}
-          </div>
-        </div>
-
-        {/* Side selector */}
-        <div className={styles.sideButtons}>
-          <button
-            className={`${styles.sideButton} ${side === 'long' ? styles.longActive : ''}`}
-            onClick={() => setSide('long')}
-          >
-            Long
-          </button>
-          <button
-            className={`${styles.sideButton} ${side === 'short' ? styles.shortActive : ''}`}
-            onClick={() => setSide('short')}
-          >
-            Short
-          </button>
-        </div>
-
-        {/* Size row */}
-        <div className={styles.swapRow}>
-          <div className={styles.swapLabel}>{sideLabel}</div>
-          <div className={styles.swapInputWrap}>
-            <input
-              className={styles.swapInput}
-              placeholder="0.0"
-              inputMode="decimal"
-              value={size}
-              onChange={(e) => setSize(e.target.value)}
-            />
-            <div className={styles.tokenBadge}>{symbol}</div>
-          </div>
-          <div className={styles.balanceLine}>
-            Notional ≈ {pretty(notional, 2)} USDC
-            <span className={styles.dot}>•</span>
-            Collateral need ≈ {pretty(requiredCollateral, 2)} USDC
-          </div>
-        </div>
-
-        {/* Leverage */}
-        <div className={styles.leverageGroup}>
-          <div className={styles.leverageLabel}>Leverage</div>
-          {[1, 2, 3, 5, 10].map((x) => (
-            <button
-              key={x}
-              className={`${styles.leverageButton} ${leverage === x ? styles.leverageActive : ''}`}
-              onClick={() => setLeverage(x)}
-            >
-              {x}×
-            </button>
-          ))}
-        </div>
-
-        {/* Balances */}
-        <div className={styles.balanceLine}>
-          Withdrawable: {pretty(withdrawable, 2)} USDC
-          {pos && (
-            <>
-              <span className={styles.dot}>•</span>
-              Position: {pos.szi > 0 ? '+' : ''}{pretty(pos.szi, 6)} {symbol}
-            </>
-          )}
-        </div>
-
-        {/* Notices */}
-        {blockMsg && (
-          <div className={`${styles.notice} ${styles.error}`} role="alert">
-            {blockMsg}
-          </div>
-        )}
-        {notice && !blockMsg && (
-          <div className={`${styles.notice} ${isErrorNotice ? styles.error : styles.success}`}>
-            {notice}
-          </div>
-        )}
-        {quoteErr && <div className={`${styles.notice} ${styles.error}`}>{quoteErr}</div>}
-
-        {/* Submit */}
-        <button
-          className={styles.swapButton}
-          onClick={doSubmit}
-          disabled={!canSubmit || !!blockMsg}
-          title={!canSubmit ? 'Enter amount' : blockMsg ? blockMsg : 'Open position'}
-          aria-disabled={!canSubmit || !!blockMsg}
-        >
-          {buttonLabel}
-        </button>
-      </div>
-
-      {/* Settings modal */}
-      <SwapSettingsModal
-        visible={showSettings}
-        onClose={() => setShowSettings(false)}
-        slippage={slippagePct}
-        setSlippage={setSlippagePct}
-        speed={'turbo' as any}
-        setSpeed={() => {}}
-      />
-    </div>
+  const marketIconUrl = useMemo(
+    () => `https://app.hyperliquid.xyz/coins/${symbol.toUpperCase()}.svg`,
+    [symbol]
   );
+
+  const usdcIconUrl = '/usdc.svg';
+
+return (
+  <>
+    <div className={styles.swapContainer}>
+      {/* Column wrapper so the card and the info box share the same width */}
+      <div className={styles.ticketColumn}>
+        {/* Ticket card */}
+        <div className={styles.swapCard}>
+          {/* Settings */}
+          <div
+            className={styles.swapSettingsIcon}
+            onClick={() => setShowSettings(true)}
+            title="Settings"
+          >
+            <img src="/assets/images/gear-8.svg" alt="Settings" className={styles.gearIcon} />
+          </div>
+
+          {/* Header */}
+          <div className={styles.headerGrid}>
+            <div className={styles.headerLeft}>
+              <MarketSelector value={symbol} options={markets} onChange={setSymbol} />
+            </div>
+
+            <div className={styles.headerRight}>
+              <MarkTicker value={mark} />
+              <div className={styles.walletLines}>
+                <div>Available: {pretty(withdrawable, 2)} USDC</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Side selector */}
+          <div className={styles.sideButtons}>
+            <button
+              className={`${styles.sideButton} ${side === 'long' ? styles.longActive : ''}`}
+              onClick={() => setSide('long')}
+            >
+              Long
+            </button>
+            <button
+              className={`${styles.sideButton} ${side === 'short' ? styles.shortActive : ''}`}
+              onClick={() => setSide('short')}
+            >
+              Short
+            </button>
+          </div>
+
+          {/* Size row */}
+          <div className={styles.swapRow}>
+            <div className={styles.swapInputWrap}>
+              <input
+                className={styles.swapInput}
+                placeholder={sizeMode === 'base' ? '0.0' : '0.00'}
+                inputMode="decimal"
+                value={size}
+                onChange={(e) => setSize(e.target.value)}
+                aria-label={sizeMode === 'base' ? `${symbol} amount` : `USDC amount`}
+              />
+
+              {/* Denomination toggle */}
+              <div className={styles.denomToggle} role="tablist" aria-label="Input denomination">
+                <button
+                  type="button"
+                  className={`${styles.denomBtn} ${sizeMode === 'base' ? styles.denomActive : ''}`}
+                  onClick={() => setSizeMode('base')}
+                  aria-selected={sizeMode === 'base'}
+                  title={symbol}
+                >
+                  <img
+                    className={styles.denomIcon}
+                    src={marketIconUrl}
+                    alt=""
+                    width={16}
+                    height={16}
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/unknown.svg'; }}
+                  />
+                  <span className={styles.denomLabel}>{symbol}</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={`${styles.denomBtn} ${sizeMode === 'quote' ? styles.denomActive : ''}`}
+                  onClick={() => setSizeMode('quote')}
+                  aria-selected={sizeMode === 'quote'}
+                  title="USDC"
+                >
+                  <img
+                    className={styles.denomIcon}
+                    src={usdcIconUrl}
+                    alt=""
+                    width={16}
+                    height={16}
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/usdc.svg'; }}
+                  />
+                  <span className={styles.denomLabel}>USDC</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Exposure + margin */}
+            <div className={styles.balanceLine}>
+              Exposure ≈ {pretty(notional, 2)} USDC
+              <span className={styles.dot}>•</span>
+              Margin used ≈ {pretty(requiredCollateral, 2)} USDC
+            </div>
+
+            {/* Size (only when user typed USDC) */}
+            {sizeMode === 'quote' && (
+              <div className={`${styles.balanceLine} ${styles.sizeLine}`}>
+                Size ≈ {pretty(baseSize, 6)} {symbol}
+              </div>
+            )}
+          </div>
+
+          {/* Leverage (slider + stepper) */}
+          <div className={styles.levRow}>
+            <div className={styles.levHeader}>
+              <div className={styles.levTitle}>Leverage</div>
+              <div className={styles.levBadge}>Max {maxLeverage}×</div>
+            </div>
+
+            <div className={styles.levControl}>
+              <input
+                type="range"
+                className={styles.range}
+                min={1}
+                max={maxLeverage}
+                step={1}
+                value={leverage}
+                onChange={(e) => setLeverage(Number(e.target.value))}
+                aria-label="Leverage"
+              />
+              <div className={styles.stepper} aria-live="polite">
+                <button
+                  type="button"
+                  onClick={() => setLeverage((v) => Math.max(1, v - 1))}
+                  aria-label="Decrease leverage"
+                >
+                  −
+                </button>
+                <span className={styles.stepperValue}>{leverage}×</span>
+                <button
+                  type="button"
+                  onClick={() => setLeverage((v) => Math.min(maxLeverage, v + 1))}
+                  aria-label="Increase leverage"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            <div className={styles.levNote}>
+              Higher leverage increases the liquidation risk.
+            </div>
+          </div>
+
+          {/* Position (optional) */}
+          {pos && (
+            <div className={styles.balanceLine}>
+              Position: {pos.szi > 0 ? '+' : ''}{pretty(pos.szi, 6)} {symbol}
+            </div>
+          )}
+
+          {/* Notices */}
+          {blockMsg && (
+            <div className={`${styles.notice} ${styles.error}`} role="alert">
+              {blockMsg}
+            </div>
+          )}
+          {notice && !blockMsg && (
+            <div className={`${styles.notice} ${isErrorNotice ? styles.error : styles.success}`}>
+              {notice}
+            </div>
+          )}
+          {quoteErr && <div className={`${styles.notice} ${styles.error}`}>{quoteErr}</div>}
+
+          {/* Submit */}
+          <button
+            className={styles.swapButton}
+            onClick={doSubmit}
+            disabled={!canSubmit || !!blockMsg}
+            title={!canSubmit ? 'Enter amount' : blockMsg ? blockMsg : 'Open position'}
+            aria-disabled={!canSubmit || !!blockMsg}
+          >
+            {buttonLabel}
+          </button>
+        </div>
+
+        {/* TP/SL info box — same width as the ticket, with a small gap */}
+        <div className={styles.swapInfoWrap}>
+          <SwapInfoBox
+            rateLabel="Take Profit • Stop Loss"
+            badgeLabel="0.05% fee"
+            entryPrice={mark || undefined}
+            side={side}
+            size={baseSize}
+            leverage={leverage}
+            onChange={() => {}}
+          />
+        </div>
+      </div>
+    </div>
+
+    {/* Settings modal */}
+    <SwapSettingsModal
+      visible={showSettings}
+      onClose={() => setShowSettings(false)}
+      slippage={slippagePct}
+      setSlippage={setSlippagePct}
+      speed={'turbo' as any}
+      setSpeed={() => {}}
+    />
+  </>
+);
 }

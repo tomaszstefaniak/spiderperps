@@ -1,6 +1,9 @@
 'use client';
-import React from 'react';
+
+import React, { useMemo, useState } from 'react';
 import styles from './MarketSelector.module.css';
+import MarketPicker from './MarketPicker';
+import { nameForSymbol } from './symbolNames';
 
 type Props = {
   value: string;
@@ -9,37 +12,50 @@ type Props = {
 };
 
 export default function MarketSelector({ value, options, onChange }: Props) {
+  const [open, setOpen] = useState(false);
   const sym = (value || '').toUpperCase();
-  const iconUrl = `https://app.hyperliquid.xyz/coins/${sym}.svg`;
+
+  const iconUrl = useMemo(
+    () => `https://app.hyperliquid.xyz/coins/${sym}.svg`,
+    [sym]
+  );
 
   return (
-    <div className={styles.container}>
-      <div className={styles.label}>Market</div>
-      <div className={styles.selectWrap}>
-        {/* icon for the currently selected market */}
-        <img
-          className={styles.selectedIcon}
-          src={iconUrl}
-          alt=""
-          aria-hidden="true"
-          onError={(e) => {
-            // hide if remote icon 404s
-            (e.currentTarget as HTMLImageElement).style.display = 'none';
-          }}
-        />
-        <select
-          className={styles.select}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
+    <>
+      <div className={styles.container}>
+
+        <button
+          type="button"
+          className={styles.pickerButton}
+          onClick={() => setOpen(true)}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-label={`Select market, current ${nameForSymbol(sym)}`}
         >
-          {options.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </select>
-        <span className={styles.chevron}>▾</span>
+          <img
+            className={styles.icon}
+            src={iconUrl}
+            alt=""
+            aria-hidden="true"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = '/unknown.svg';
+            }}
+          />
+          <span className={styles.symbol}>{nameForSymbol(sym)}</span>
+          <span className={styles.caret}>▾</span>
+        </button>
       </div>
-    </div>
+
+      <MarketPicker
+        visible={open}
+        value={sym}
+        options={options}
+        onClose={() => setOpen(false)}
+        onSelect={(s) => {
+          onChange(s);
+          setOpen(false);
+        }}
+      />
+    </>
   );
 }
