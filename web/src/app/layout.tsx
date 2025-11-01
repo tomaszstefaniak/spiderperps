@@ -1,7 +1,8 @@
+// src/app/layout.tsx
 import type { Metadata } from "next";
 import "./globals.css";
-import { WalletProvider } from "./context/WalletContext";
-import Providers from './providers';
+import Providers from "./providers";
+import { LiveMidsProvider } from "@/app/components/_shared/LiveMidsContext";
 
 export const metadata: Metadata = {
   title: "dex-hl",
@@ -13,7 +14,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <Providers>
-          {children}
+          <LiveMidsProvider>
+            {children}
+          </LiveMidsProvider>
         </Providers>
       </body>
     </html>
