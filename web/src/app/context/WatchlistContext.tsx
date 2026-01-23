@@ -1,7 +1,7 @@
 'use client';
 import React, { createContext, useContext, useMemo, useCallback, useEffect } from 'react';
 import { useLocalStorage } from '../context/useLocalStorage';
-import type { NetworkKey } from '../hooks/useNetwork';
+import type { NetworkKey } from '../../hooks/useNetwork';
 
 export type WatchedWallet = {
   address: string;
@@ -55,7 +55,7 @@ export function WatchlistProvider({
         const oldGlobal = 'hl.watchlist.v1';
 
         const fromUnknown = window.localStorage.getItem(unknownKey);
-        const fromOld     = window.localStorage.getItem(oldGlobal);
+        const fromOld = window.localStorage.getItem(oldGlobal);
 
         if (fromUnknown) {
           window.localStorage.setItem(KEY, fromUnknown);
@@ -63,9 +63,52 @@ export function WatchlistProvider({
           window.localStorage.setItem(KEY, fromOld);
         }
       }
-    } catch {}
+    } catch { }
     // run whenever scope changes
   }, [KEY, walletAddress]);
+
+  // ... inside WatchlistProvider
+
+  const apiFollow = useCallback(async (target: string, action: 'follow' | 'unfollow') => {
+    if (!walletAddress) return;
+    try {
+      await fetch('/api/follow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: walletAddress, target, action }),
+      });
+    } catch (e) {
+      console.error("api follow error", e);
+    }
+  }, [walletAddress]);
+
+  // Sync from backend on connect
+  useEffect(() => {
+    if (!walletAddress) return;
+    (async () => {
+      try {
+        const r = await fetch(`/api/user/following?user=${walletAddress}`);
+        const j = await r.json();
+        if (j.following && Array.isArray(j.following)) {
+          setList(prev => {
+            const existing = new Set(prev.map(w => w.address.toLowerCase()));
+            const news = j.following.filter((addr: string) => !existing.has(addr.toLowerCase()));
+            if (news.length === 0) return prev;
+
+            const newItems = news.map((addr: string) => ({
+              address: addr,
+              autoCopy: false,
+              notify: false,
+              addedAt: Date.now()
+            }));
+            return [...prev, ...newItems];
+          });
+        }
+      } catch (e) {
+        console.error("fetch following error", e);
+      }
+    })();
+  }, [walletAddress, setList]);
 
   const addresses = useMemo(() => list.map(w => w.address), [list]);
   const count = list.length;
@@ -78,16 +121,28 @@ export function WatchlistProvider({
   const watch = useCallback((addr: string) => {
     const a = addr.trim();
     if (!ADDR_RE.test(a)) return;
+
+    // Sync backend
+    if (walletAddress) {
+      apiFollow(a, 'follow');
+    }
+
     setList(prev => {
       if (prev.some(w => w.address.toLowerCase() === a.toLowerCase())) return prev;
       return [...prev, { address: a, autoCopy: false, notify: false, addedAt: Date.now() }];
     });
-  }, [setList]);
+  }, [setList, walletAddress, apiFollow]);
 
   const unwatch = useCallback((addr: string) => {
     const a = addr.trim().toLowerCase();
+
+    // Sync backend
+    if (walletAddress) {
+      apiFollow(a, 'unfollow');
+    }
+
     setList(prev => prev.filter(w => w.address.toLowerCase() !== a));
-  }, [setList]);
+  }, [setList, walletAddress, apiFollow]);
 
   const setAutoCopy = useCallback((addr: string, v: boolean) => {
     const a = addr.toLowerCase();

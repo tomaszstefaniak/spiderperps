@@ -16,7 +16,7 @@ const pretty = (n: number, dp = 6) =>
 const rid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 const log = (id: string, label: string, data?: any) => console.log(`[perp:${id}] ${label}`, data ?? '');
 
-export default function PerpOrderTicket() {
+export default function PerpOrderTicket({ preset }: { preset?: { coin: string, side: Side, size?: number } | null }) {
   const id = useMemo(rid, []);
   const { withdrawable, positions, refresh } = useBalances();
 
@@ -40,6 +40,20 @@ export default function PerpOrderTicket() {
   // market selection
   const [symbol, setSymbol] = useState('ETH');
   const [markets, setMarkets] = useState<string[]>(['ETH']);
+
+  // Preset effect
+  useEffect(() => {
+    if (preset) {
+      setSymbol(preset.coin.toUpperCase());
+      setSide(preset.side);
+      // Maybe set size? User requirement said "amount should be changed by user... but should be known what is original".
+      // I can set it but maybe user wants to scale it?
+      // Use logic: if size is provided, set it as base size (assuming user copies exact amount).
+      // User can edit it.
+      // Assuming preset.size is base asset size.
+      if (preset.size) setSize(String(preset.size));
+    }
+  }, [preset]);
 
   const stickyMark = useStickyNumber(mark);
 
@@ -215,18 +229,18 @@ export default function PerpOrderTicket() {
   // keep pos for the per-market Position line
   const pos = useMemo(() => {
     const p = (positions || []).find(
-      (pp) => String(pp?.position?.coin ?? '').toUpperCase() === symbol.toUpperCase(),
+      (pp) => String(pp.coin ?? '').toUpperCase() === symbol.toUpperCase(),
     );
     if (!p) return null;
-    const szi  = Number(p.position?.szi ?? 0);
-    const uPnl = Number(p.position?.uPnl ?? p.position?.uPnlUsd ?? p.position?.unrealizedPnl ?? 0);
+    const szi = Number(p.szi ?? 0);
+    const uPnl = Number(p.unrealizedPnl ?? 0);
     return { szi, uPnl: Number.isFinite(uPnl) ? uPnl : 0 };
   }, [positions, symbol]);
 
   // NEW: sum uPnL across *all* positions
   const allUPnL = useMemo(() => {
     return (positions || []).reduce((sum, pp) => {
-      const v = Number(pp?.position?.uPnl ?? pp?.position?.uPnlUsd ?? pp?.position?.unrealizedPnl ?? 0);
+      const v = Number(pp.unrealizedPnl ?? 0);
       return sum + (Number.isFinite(v) ? v : 0);
     }, 0);
   }, [positions]);
@@ -244,217 +258,217 @@ export default function PerpOrderTicket() {
 
   const usdcIconUrl = '/usdc.svg';
 
-return (
-  <>
-    <div className={styles.swapContainer}>
-      {/* Column wrapper so the card and the info box share the same width */}
-      <div className={styles.ticketColumn}>
-        {/* Ticket card */}
-        <div className={styles.swapCard}>
-          {/* Settings */}
-          <div
-            className={styles.swapSettingsIcon}
-            onClick={() => setShowSettings(true)}
-            title="Settings"
-          >
-            <img src="/assets/images/gear-8.svg" alt="Settings" className={styles.gearIcon} />
-          </div>
-
-          {/* Header */}
-          <div className={styles.headerGrid}>
-            <div className={styles.headerLeft}>
-              <MarketSelector value={symbol} options={markets} onChange={setSymbol} />
+  return (
+    <>
+      <div className={styles.swapContainer}>
+        {/* Column wrapper so the card and the info box share the same width */}
+        <div className={styles.ticketColumn}>
+          {/* Ticket card */}
+          <div className={styles.swapCard}>
+            {/* Settings */}
+            <div
+              className={styles.swapSettingsIcon}
+              onClick={() => setShowSettings(true)}
+              title="Settings"
+            >
+              <img src="/assets/images/gear-8.svg" alt="Settings" className={styles.gearIcon} />
             </div>
 
-            <div className={styles.headerRight}>
-              <MarkTicker value={mark} />
-              <div className={styles.walletLines}>
-                <div>Available: {pretty(withdrawable, 2)} USDC</div>
+            {/* Header */}
+            <div className={styles.headerGrid}>
+              <div className={styles.headerLeft}>
+                <MarketSelector value={symbol} options={markets} onChange={setSymbol} />
               </div>
-            </div>
-          </div>
 
-          {/* Side selector */}
-          <div className={styles.sideButtons}>
-            <button
-              className={`${styles.sideButton} ${side === 'long' ? styles.longActive : ''}`}
-              onClick={() => setSide('long')}
-            >
-              Long
-            </button>
-            <button
-              className={`${styles.sideButton} ${side === 'short' ? styles.shortActive : ''}`}
-              onClick={() => setSide('short')}
-            >
-              Short
-            </button>
-          </div>
-
-          {/* Size row */}
-          <div className={styles.swapRow}>
-            <div className={styles.swapInputWrap}>
-              <input
-                className={styles.swapInput}
-                placeholder={sizeMode === 'base' ? '0.0' : '0.00'}
-                inputMode="decimal"
-                value={size}
-                onChange={(e) => setSize(e.target.value)}
-                aria-label={sizeMode === 'base' ? `${symbol} amount` : `USDC amount`}
-              />
-
-              {/* Denomination toggle */}
-              <div className={styles.denomToggle} role="tablist" aria-label="Input denomination">
-                <button
-                  type="button"
-                  className={`${styles.denomBtn} ${sizeMode === 'base' ? styles.denomActive : ''}`}
-                  onClick={() => setSizeMode('base')}
-                  aria-selected={sizeMode === 'base'}
-                  title={symbol}
-                >
-                  <img
-                    className={styles.denomIcon}
-                    src={marketIconUrl}
-                    alt=""
-                    width={16}
-                    height={16}
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/unknown.svg'; }}
-                  />
-                  <span className={styles.denomLabel}>{symbol}</span>
-                </button>
-
-                <button
-                  type="button"
-                  className={`${styles.denomBtn} ${sizeMode === 'quote' ? styles.denomActive : ''}`}
-                  onClick={() => setSizeMode('quote')}
-                  aria-selected={sizeMode === 'quote'}
-                  title="USDC"
-                >
-                  <img
-                    className={styles.denomIcon}
-                    src={usdcIconUrl}
-                    alt=""
-                    width={16}
-                    height={16}
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/usdc.svg'; }}
-                  />
-                  <span className={styles.denomLabel}>USDC</span>
-                </button>
+              <div className={styles.headerRight}>
+                <MarkTicker value={mark} />
+                <div className={styles.walletLines}>
+                  <div>Available: {pretty(withdrawable, 2)} USDC</div>
+                </div>
               </div>
             </div>
 
-            {/* Exposure + margin */}
-            <div className={styles.balanceLine}>
-              Exposure ≈ {pretty(notional, 2)} USDC
-              <span className={styles.dot}>•</span>
-              Margin used ≈ {pretty(requiredCollateral, 2)} USDC
+            {/* Side selector */}
+            <div className={styles.sideButtons}>
+              <button
+                className={`${styles.sideButton} ${side === 'long' ? styles.longActive : ''}`}
+                onClick={() => setSide('long')}
+              >
+                Long
+              </button>
+              <button
+                className={`${styles.sideButton} ${side === 'short' ? styles.shortActive : ''}`}
+                onClick={() => setSide('short')}
+              >
+                Short
+              </button>
             </div>
 
-            {/* Size (only when user typed USDC) */}
-            {sizeMode === 'quote' && (
-              <div className={`${styles.balanceLine} ${styles.sizeLine}`}>
-                Size ≈ {pretty(baseSize, 6)} {symbol}
+            {/* Size row */}
+            <div className={styles.swapRow}>
+              <div className={styles.swapInputWrap}>
+                <input
+                  className={styles.swapInput}
+                  placeholder={sizeMode === 'base' ? '0.0' : '0.00'}
+                  inputMode="decimal"
+                  value={size}
+                  onChange={(e) => setSize(e.target.value)}
+                  aria-label={sizeMode === 'base' ? `${symbol} amount` : `USDC amount`}
+                />
+
+                {/* Denomination toggle */}
+                <div className={styles.denomToggle} role="tablist" aria-label="Input denomination">
+                  <button
+                    type="button"
+                    className={`${styles.denomBtn} ${sizeMode === 'base' ? styles.denomActive : ''}`}
+                    onClick={() => setSizeMode('base')}
+                    aria-selected={sizeMode === 'base'}
+                    title={symbol}
+                  >
+                    <img
+                      className={styles.denomIcon}
+                      src={marketIconUrl}
+                      alt=""
+                      width={16}
+                      height={16}
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/unknown.svg'; }}
+                    />
+                    <span className={styles.denomLabel}>{symbol}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`${styles.denomBtn} ${sizeMode === 'quote' ? styles.denomActive : ''}`}
+                    onClick={() => setSizeMode('quote')}
+                    aria-selected={sizeMode === 'quote'}
+                    title="USDC"
+                  >
+                    <img
+                      className={styles.denomIcon}
+                      src={usdcIconUrl}
+                      alt=""
+                      width={16}
+                      height={16}
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/usdc.svg'; }}
+                    />
+                    <span className={styles.denomLabel}>USDC</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Exposure + margin */}
+              <div className={styles.balanceLine}>
+                Exposure ≈ {pretty(notional, 2)} USDC
+                <span className={styles.dot}>•</span>
+                Margin used ≈ {pretty(requiredCollateral, 2)} USDC
+              </div>
+
+              {/* Size (only when user typed USDC) */}
+              {sizeMode === 'quote' && (
+                <div className={`${styles.balanceLine} ${styles.sizeLine}`}>
+                  Size ≈ {pretty(baseSize, 6)} {symbol}
+                </div>
+              )}
+            </div>
+
+            {/* Leverage (slider + stepper) */}
+            <div className={styles.levRow}>
+              <div className={styles.levHeader}>
+                <div className={styles.levTitle}>Leverage</div>
+                <div className={styles.levBadge}>Max {maxLeverage}×</div>
+              </div>
+
+              <div className={styles.levControl}>
+                <input
+                  type="range"
+                  className={styles.range}
+                  min={1}
+                  max={maxLeverage}
+                  step={1}
+                  value={leverage}
+                  onChange={(e) => setLeverage(Number(e.target.value))}
+                  aria-label="Leverage"
+                />
+                <div className={styles.stepper} aria-live="polite">
+                  <button
+                    type="button"
+                    onClick={() => setLeverage((v) => Math.max(1, v - 1))}
+                    aria-label="Decrease leverage"
+                  >
+                    −
+                  </button>
+                  <span className={styles.stepperValue}>{leverage}×</span>
+                  <button
+                    type="button"
+                    onClick={() => setLeverage((v) => Math.min(maxLeverage, v + 1))}
+                    aria-label="Increase leverage"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className={styles.levNote}>
+                Higher leverage increases the liquidation risk.
+              </div>
+            </div>
+
+            {/* Position (optional) */}
+            {pos && (
+              <div className={styles.balanceLine}>
+                Position: {pos.szi > 0 ? '+' : ''}{pretty(pos.szi, 6)} {symbol}
               </div>
             )}
-          </div>
 
-          {/* Leverage (slider + stepper) */}
-          <div className={styles.levRow}>
-            <div className={styles.levHeader}>
-              <div className={styles.levTitle}>Leverage</div>
-              <div className={styles.levBadge}>Max {maxLeverage}×</div>
-            </div>
-
-            <div className={styles.levControl}>
-              <input
-                type="range"
-                className={styles.range}
-                min={1}
-                max={maxLeverage}
-                step={1}
-                value={leverage}
-                onChange={(e) => setLeverage(Number(e.target.value))}
-                aria-label="Leverage"
-              />
-              <div className={styles.stepper} aria-live="polite">
-                <button
-                  type="button"
-                  onClick={() => setLeverage((v) => Math.max(1, v - 1))}
-                  aria-label="Decrease leverage"
-                >
-                  −
-                </button>
-                <span className={styles.stepperValue}>{leverage}×</span>
-                <button
-                  type="button"
-                  onClick={() => setLeverage((v) => Math.min(maxLeverage, v + 1))}
-                  aria-label="Increase leverage"
-                >
-                  +
-                </button>
+            {/* Notices */}
+            {blockMsg && (
+              <div className={`${styles.notice} ${styles.error}`} role="alert">
+                {blockMsg}
               </div>
-            </div>
+            )}
+            {notice && !blockMsg && (
+              <div className={`${styles.notice} ${isErrorNotice ? styles.error : styles.success}`}>
+                {notice}
+              </div>
+            )}
+            {quoteErr && <div className={`${styles.notice} ${styles.error}`}>{quoteErr}</div>}
 
-            <div className={styles.levNote}>
-              Higher leverage increases the liquidation risk.
-            </div>
+            {/* Submit */}
+            <button
+              className={styles.swapButton}
+              onClick={doSubmit}
+              disabled={!canSubmit || !!blockMsg}
+              title={!canSubmit ? 'Enter amount' : blockMsg ? blockMsg : 'Open position'}
+              aria-disabled={!canSubmit || !!blockMsg}
+            >
+              {buttonLabel}
+            </button>
           </div>
 
-          {/* Position (optional) */}
-          {pos && (
-            <div className={styles.balanceLine}>
-              Position: {pos.szi > 0 ? '+' : ''}{pretty(pos.szi, 6)} {symbol}
-            </div>
-          )}
-
-          {/* Notices */}
-          {blockMsg && (
-            <div className={`${styles.notice} ${styles.error}`} role="alert">
-              {blockMsg}
-            </div>
-          )}
-          {notice && !blockMsg && (
-            <div className={`${styles.notice} ${isErrorNotice ? styles.error : styles.success}`}>
-              {notice}
-            </div>
-          )}
-          {quoteErr && <div className={`${styles.notice} ${styles.error}`}>{quoteErr}</div>}
-
-          {/* Submit */}
-          <button
-            className={styles.swapButton}
-            onClick={doSubmit}
-            disabled={!canSubmit || !!blockMsg}
-            title={!canSubmit ? 'Enter amount' : blockMsg ? blockMsg : 'Open position'}
-            aria-disabled={!canSubmit || !!blockMsg}
-          >
-            {buttonLabel}
-          </button>
-        </div>
-
-        {/* TP/SL info box — same width as the ticket, with a small gap */}
-        <div className={styles.swapInfoWrap}>
-          <SwapInfoBox
-            rateLabel="Take Profit • Stop Loss"
-            badgeLabel="0.05% fee"
-            entryPrice={mark || undefined}
-            side={side}
-            size={baseSize}
-            leverage={leverage}
-            onChange={() => {}}
-          />
+          {/* TP/SL info box — same width as the ticket, with a small gap */}
+          <div className={styles.swapInfoWrap}>
+            <SwapInfoBox
+              rateLabel="Take Profit • Stop Loss"
+              badgeLabel="0.05% fee"
+              entryPrice={mark || undefined}
+              side={side}
+              size={baseSize}
+              leverage={leverage}
+              onChange={() => { }}
+            />
+          </div>
         </div>
       </div>
-    </div>
 
-    {/* Settings modal */}
-    <SwapSettingsModal
-      visible={showSettings}
-      onClose={() => setShowSettings(false)}
-      slippage={slippagePct}
-      setSlippage={setSlippagePct}
-      speed={'turbo' as any}
-      setSpeed={() => {}}
-    />
-  </>
-);
+      {/* Settings modal */}
+      <SwapSettingsModal
+        visible={showSettings}
+        onClose={() => setShowSettings(false)}
+        slippage={slippagePct}
+        setSlippage={setSlippagePct}
+        speed={'turbo' as any}
+        setSpeed={() => { }}
+      />
+    </>
+  );
 }

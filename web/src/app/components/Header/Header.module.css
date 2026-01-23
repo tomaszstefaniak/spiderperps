@@ -219,4 +219,17 @@
   animation: headerSpin 0.9s linear infinite;
   pointer-events: none;
 }
+
+/* group the two toggle buttons */
+.toggleGroup {
+  display: inline-flex;
+  gap: 8px;
+}
+
+/* active state for the selected tab */
+.headerButtonActive {
+  background: #72f2b6;
+  color: #000;
+}
+
 @keyframes headerSpin { to { transform: rotate(360deg); } }

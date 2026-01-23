@@ -1,27 +1,43 @@
-"use client";
-import React, { createContext, useContext, useState } from "react";
+'use client';
 
-type WalletState = {
+import React, { createContext, useContext, useState, useEffect } from 'react';
+
+interface WalletContextType {
   address: string | null;
-  connect: () => Promise<void>;
+  providerType: 'metamask' | 'phantom' | 'other' | null;
+  connect: (address: string, type: 'metamask' | 'phantom' | 'other') => void;
   disconnect: () => void;
-};
+}
 
-const WalletContext = createContext<WalletState>({
+const WalletContext = createContext<WalletContextType>({
   address: null,
-  connect: async () => {},
-  disconnect: () => {},
+  providerType: null,
+  connect: () => { },
+  disconnect: () => { },
 });
 
-export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const useWallet = () => useContext(WalletContext);
+
+export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
-  const connect = async () => setAddress("HL-PLACEHOLDER");
-  const disconnect = () => setAddress(null);
+  const [providerType, setProviderType] = useState<'metamask' | 'phantom' | 'other' | null>(null);
+
+  // Restore connection if needed (simple version)
+  // complicated to auto-reconnect without triggers, skipping for now to keep it simple as per plan.
+
+  const connect = (addr: string, type: 'metamask' | 'phantom' | 'other') => {
+    setAddress(addr);
+    setProviderType(type);
+  };
+
+  const disconnect = () => {
+    setAddress(null);
+    setProviderType(null);
+  };
+
   return (
-    <WalletContext.Provider value={{ address, connect, disconnect }}>
+    <WalletContext.Provider value={{ address, providerType, connect, disconnect }}>
       {children}
     </WalletContext.Provider>
   );
-};
-
-export const useWallet = () => useContext(WalletContext);
+}

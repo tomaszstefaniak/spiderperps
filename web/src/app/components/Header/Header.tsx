@@ -4,6 +4,9 @@ import React, { useState, useMemo } from 'react';
 import styles from './Header.module.css';
 import { BACKGROUND_IMAGE, DEFAULT_BACKGROUND } from '@utils/config';
 import { useWatchlist } from '@/app/context/WatchlistContext';
+import { useCopyMode } from '@/app/context/CopyModeContext';
+import { useWallet } from '@/app/context/WalletContext';
+import WalletModal from '../WalletModal/WalletModal';
 
 const mydexLogo = '/assets/logo/eth_logo_mini_white.svg';
 const gearIcon = '/assets/images/gear-8.svg';
@@ -15,16 +18,21 @@ type Health = {
 };
 
 interface HeaderProps {
-  onFollow?: (address: string) => void;
+  onFollow?: (addressOrAlgo: string) => void;
 }
 
 export default function Header({ onFollow }: HeaderProps) {
   const [showGearPopup, setShowGearPopup] = useState(false);
+  const [showWalletModal, setShowWalletModal] = useState(false);
   const [health, setHealth] = useState<Health | null>(null);
   const [healthErr, setHealthErr] = useState<string>('');
-  const [searchTerm, setSearchTerm] = useState('');  // search input state
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // Apply background image on mount
+  const { mode, setMode } = useCopyMode();
+  const { watch, isWatched } = useWatchlist();
+  const { address, connect, disconnect } = useWallet();
+
+  // Background
   React.useEffect(() => {
     const bg = DEFAULT_BACKGROUND || BACKGROUND_IMAGE?.[0] || '';
     if (bg && typeof document !== 'undefined') {
@@ -36,7 +44,7 @@ export default function Header({ onFollow }: HeaderProps) {
     }
   }, []);
 
-  // Health ping (check connection status)
+  // Health ping
   React.useEffect(() => {
     let alive = true;
     (async () => {
@@ -52,61 +60,128 @@ export default function Header({ onFollow }: HeaderProps) {
     return () => { alive = false; };
   }, []);
 
-  const status =
-    healthErr ? 'Disconnected' :
-    health?.ok ? 'Connected' : 'Unknown';
+  const status = healthErr ? 'Disconnected' : health?.ok ? 'Connected' : 'Unknown';
   const net = health?.network ? (health.network === 'testnet' ? 'testnet' : 'mainnet') : '';
 
-  // Determine if current search term is a valid address (simple 0x... pattern)
-  const isValidAddress = useMemo(() => /^0x[0-9A-Fa-f]{40}$/.test(searchTerm.trim()), [searchTerm]);
-  const { watch, isWatched } = useWatchlist();
+  // Input parsing
+  const term = searchTerm.trim();
+  const isEthAddress = useMemo(() => /^0x[0-9A-Fa-f]{40}$/.test(term), [term]);
+  const isAlgoId = useMemo(() => /^[a-z0-9][a-z0-9-_]{2,}$/i.test(term), [term]); // simple slug rule
+
+  // Wallet validation only for wallet mode (kept for clarity)
+  const isValidWalletAddress = useMemo(
+    () => mode === 'wallet' && isEthAddress,
+    [mode, isEthAddress]
+  );
 
   const handleFollow = () => {
-    if (!isValidAddress) return;
-    if (!isWatched(searchTerm.trim())) {
-      watch(searchTerm.trim());
+    if (!term) return;
+
+    if (mode === 'wallet') {
+      if (!isEthAddress) return;                   // block non-addresses in wallet mode
+      if (!isWatched(term)) watch(term);
+      setSearchTerm('');
+      return;
     }
+
+    // mode === 'algo'
+    if (!isAlgoId || isEthAddress) return;         // block addresses & junk in algo mode
+    onFollow?.(term);                               // hook for your algo-follow logic
     setSearchTerm('');
   };
 
+  const placeholder = mode === 'wallet'
+    ? 'Search address to follow'
+    : 'Search algo to follow';
+
+  const shorten = (a: string) => `${a.slice(0, 6)}...${a.slice(-4)}`;
+
   return (
     <div className={styles.headerContainer}>
-      {/* LEFT: Logo and section button */}
+      <WalletModal
+        visible={showWalletModal}
+        onClose={() => setShowWalletModal(false)}
+        onConnect={connect}
+      />
+
+      {/* LEFT: Logo + toggle */}
       <div className={styles.headerLeft}>
         <img src={mydexLogo} alt="logo" className={styles.headerLogo} />
         <span className={styles.headerAppName}>mydex</span>
-        <button className={styles.headerButton}>Perps</button>
-      </div>
 
-      {/* CENTER: Search bar for addresses */}
-      <div className={styles.headerCenter}>
-        <div className={styles.headerSearchContainer}>
-          <img
-            src="/assets/loupe.svg"
-            className={styles.headerSearchIcon}
-            alt="Search"
-          />
-          <input
-            className={styles.headerSearchInput}
-            placeholder="Search address to follow"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            aria-label="Search address input"
-          />
-          {isValidAddress && (
-            <button 
-              className={styles.followButton} 
-              onClick={handleFollow}
-            >
-              Follow
-            </button>
-          )}
+        <div className={styles.toggleGroup} role="tablist" aria-label="Copy mode">
+          <button
+            className={`${styles.headerButton} ${mode === 'wallet' ? styles.headerButtonActive : ''}`}
+            onClick={() => setMode('wallet')}
+            aria-pressed={mode === 'wallet'}
+          >
+            wallet copy
+          </button>
+          <button
+            className={`${styles.headerButton} ${mode === 'algo' ? styles.headerButtonActive : ''}`}
+            onClick={() => setMode('algo')}
+            aria-pressed={mode === 'algo'}
+          >
+            algo copy
+          </button>
         </div>
       </div>
 
-      {/* RIGHT: Settings gear and status display */}
+      {/* CENTER: Search */}
+      <div className={styles.headerCenter}>
+        <div className={styles.headerSearchContainer}>
+          <img src="/assets/loupe.svg" className={styles.headerSearchIcon} alt="Search" />
+          <input
+            className={styles.headerSearchInput}
+            placeholder={placeholder}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            aria-label="Search input"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleFollow();
+            }}
+          />
+          {/* wallet mode: show button only for valid address */}
+          {mode === 'wallet' && isValidWalletAddress && (
+            <button className={styles.followButton} onClick={handleFollow}>Follow</button>
+          )}
+          {/* algo mode: show button only for algo-like id, not for addresses */}
+          {mode === 'algo' && isAlgoId && !isEthAddress && (
+            <button className={styles.followButton} onClick={handleFollow}>Follow</button>
+          )}
+        </div>
+
+        {/* optional UX nudge if user types an address while in algo mode */}
+        {mode === 'algo' && isEthAddress && (
+          <div style={{ position: 'absolute', marginTop: 42, fontSize: 12, opacity: 0.8 }}>
+            Enter an algorithm id (not a wallet address)
+          </div>
+        )}
+      </div>
+
+      {/* RIGHT: Connect + Gear + status */}
       <div className={styles.headerRight}>
-        {/* Settings gear icon */}
+
+        {/* Connect Button */}
+        {address ? (
+          <button
+            className={styles.headerButton}
+            onClick={disconnect}
+            title="Click to disconnect"
+            style={{ fontSize: '0.9rem', marginRight: '0.5rem' }}
+          >
+            {shorten(address)}
+          </button>
+        ) : (
+          <button
+            className={styles.headerButton}
+            onClick={() => setShowWalletModal(true)}
+            style={{ fontSize: '0.9rem', marginRight: '0.5rem' }}
+          >
+            Connect Wallet
+          </button>
+        )}
+
         <button
           className={styles.headerButton}
           onClick={() => setShowGearPopup(v => !v)}
@@ -125,17 +200,13 @@ export default function Header({ onFollow }: HeaderProps) {
               </div>
             </div>
             <div className={styles.gearSection}>
-              <button
-                className={styles.cancelBtn}
-                onClick={() => setShowGearPopup(false)}
-              >
+              <button className={styles.cancelBtn} onClick={() => setShowGearPopup(false)}>
                 Close
               </button>
             </div>
           </div>
         )}
 
-        {/* Connection status pill on far right */}
         <div style={{ color: health?.ok ? '#72f2b6' : '#fca5a5' }}>
           {status}{net ? ` · ${net}` : ''}
         </div>

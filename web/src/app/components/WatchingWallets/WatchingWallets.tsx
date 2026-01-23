@@ -6,8 +6,12 @@ import { useWatchlist } from '@/app/context/WatchlistContext';
 
 const shorten = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
-export default function WatchingWallets() {
-  const { list, toggleAutoCopy, toggleNotify, remove } = useWatchlist();
+interface Props {
+  onSelect?: (addr: string) => void;
+}
+
+export default function WatchingWallets({ onSelect }: Props) {
+  const { list, toggleAutoCopy, toggleNotify, unwatch } = useWatchlist();
 
   if (!list.length) {
     return <div className={styles.empty}>Not watching any wallets.</div>;
@@ -16,22 +20,29 @@ export default function WatchingWallets() {
   return (
     <div className={styles.rows}>
       {list.map((w) => {
-        const label = w.short || shorten(w.address); // ← fallback so it never renders blank
+        const label = shorten(w.address);
         return (
-          <div key={w.address} className={styles.row}>
-            <a
-              href={`https://app.hyperliquid.xyz/explorer/address/${w.address}`}
-              target="_blank"
-              rel="noreferrer"
-              className={styles.addr}
-              title={w.address}
-            >
-              {label}
-            </a>
+          <div key={w.address} className={styles.row} onClick={() => onSelect?.(w.address)} style={{ cursor: onSelect ? 'pointer' : 'default' }}>
+            <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+              <span className={styles.addr} title={w.address} style={{ marginRight: '8px' }}>
+                {label}
+              </span>
+              <a
+                href={`https://app.hyperliquid.xyz/explorer/address/${w.address}`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                style={{ fontSize: '10px', color: '#3b82f6', textDecoration: 'none' }}
+                title="Explorer"
+              >
+                ↗
+              </a>
+            </div>
 
             <label
               className={`${styles.toggle} ${w.autoCopy ? styles.onGreen : ''}`}
               title="Auto Copy"
+              onClick={(e) => e.stopPropagation()}
             >
               <input
                 type="checkbox"
@@ -46,6 +57,7 @@ export default function WatchingWallets() {
             <label
               className={`${styles.toggle} ${w.notify ? styles.onGreen : ''}`}
               title="Notify"
+              onClick={(e) => e.stopPropagation()}
             >
               <input
                 type="checkbox"
@@ -59,7 +71,7 @@ export default function WatchingWallets() {
 
             <button
               className={styles.remove}
-              onClick={() => remove(w.address)}
+              onClick={(e) => { e.stopPropagation(); unwatch(w.address); }}
               aria-label={`Remove ${label} from watching`}
               title="Remove"
             >
