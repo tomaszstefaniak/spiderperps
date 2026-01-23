@@ -492,3 +492,129 @@ def tokens():
         return {"tokens": toks, "fallback": True}
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"tokens error: {e}")
+
+# ---------------- followed wallets (json persistence) ----------------
+FOLLOWED_FILE = Path(__file__).with_name("followed_wallets.json")
+
+def _load_followed() -> dict:
+    """
+    Returns dict: { "followed_address": [list_of_follower_addresses] }
+    """
+    if not FOLLOWED_FILE.exists():
+        return {}
+    try:
+        with open(FOLLOWED_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def _save_followed(data: dict):
+    try:
+        with open(FOLLOWED_FILE, "w") as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        log.error("failed to save followed.json: %s", e)
+
+class FollowReq(BaseModel):
+    user: str
+    target: str
+    action: str  # "follow" | "unfollow"
+
+@app.post("/follow")
+def follow_wallet(req: FollowReq):
+    user = req.user.lower().strip()
+    target = req.target.lower().strip()
+    action = req.action.lower()
+
+    if not user or not target:
+        raise HTTPException(status_code=400, detail="user and target required")
+
+    data = _load_followed()
+    followers = data.get(target, [])
+
+    if action == "follow":
+        if user not in followers:
+            followers.append(user)
+            data[target] = followers
+            _save_followed(data)
+        return {"status": "ok", "following": True}
+    elif action == "unfollow":
+        if user in followers:
+            followers = [u for u in followers if u != user]
+            if followers:
+                data[target] = followers
+            else:
+                del data[target]
+            _save_followed(data)
+        return {"status": "ok", "following": False}
+    else:
+        raise HTTPException(status_code=400, detail="invalid action")
+
+@app.get("/followed/top")
+def top_followed():
+    """
+    Returns list of { "address": str, "followers": int } sorted by count desc
+    """
+    data = _load_followed()
+    # tally
+    out = []
+    for target, followers in data.items():
+        out.append({"address": target, "followers": len(followers)})
+    
+    # sort desc
+    out.sort(key=lambda x: x["followers"], reverse=True)
+    return {"top": out}
+
+@app.get("/user/following")
+def user_following(user: str = Query(..., description="user address")):
+    """
+    Returns list of addresses that 'user' is following
+    """
+    u = user.lower().strip()
+    data = _load_followed()
+    following = []
+    for target, followers in data.items():
+        if u in followers:
+            following.append(target)
+    return {"following": following}
+
+@app.get("/wallet/{address}/positions")
+def wallet_positions(address: str):
+    """
+    Get open positions for a target wallet.
+    Uses info.user_state(address).
+    """
+    try:
+        state = info.user_state(address)
+        # Extract positions
+        # Hyperliquid returns "assetPositions" in user_state
+        # Each item has "position": { "coin": "ETH", "szi": "...", "entryPx": "..." }
+        
+        raw_pos = (state or {}).get("assetPositions") or []
+        clean_pos = []
+        for p in raw_pos:
+            pos_data = p.get("position") or {}
+            coin = pos_data.get("coin")
+            szi = float(pos_data.get("szi") or 0)
+            if not coin or szi == 0:
+                continue
+                
+            entry_px = float(pos_data.get("entryPx") or 0)
+            # leverage is messy to calc user-side without isolated margin data, 
+            # but we can pass raw data or simple fields
+            
+            clean_pos.append({
+                "coin": coin,
+                "size": szi,
+                "entryPx": entry_px,
+                "side": "LONG" if szi > 0 else "SHORT",
+                "liqPx": float(pos_data.get("liquidationPx") or 0) if pos_data.get("liquidationPx") else None,
+                "positionValue": abs(szi * entry_px), # approx
+                "raw": pos_data
+            })
+            
+        return {"address": address, "positions": clean_pos}
+        
+    except Exception as e:
+        log.exception("wallet positions error")
+        raise HTTPException(status_code=502, detail=f"failed to fetch positions: {e}")
