@@ -3,5 +3,5 @@ __pycache__/
 .pytest_cache/
 .env
 copytrade.db*
-followed_wallets.json
+
 tests/

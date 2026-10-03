@@ -28,8 +28,8 @@ export default function Page() {
             {/* Left: Top Followed (collapsed by default; sticky) */}
             <div className={styles.sidebarLeft}>
               <ExpandableCard
-                title="Top Followed Wallets"
-                right="Followers"
+                title="Top Traders"
+                right="Score"
                 storageKey="ui.exp.top"
                 defaultOpen={false}
               >

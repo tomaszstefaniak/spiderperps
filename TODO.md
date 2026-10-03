@@ -13,8 +13,9 @@
 
 ## Engineering
 - [ ] Set `EXPO_PUBLIC_API_URL` / `EXPO_PUBLIC_WEB_URL` in `mobile/eas.json` once the domain exists
-- [ ] Web order ticket: sign in the browser with an agent key + real TP/SL; delete the server-key endpoints
-- [ ] Public web pages for judges: landing + trader rankings + trader profile
+- [x] Web order ticket: sign in the browser with an agent key + real TP/SL; delete the server-key endpoints
+- [ ] Tomasz: test the web ticket with MetaMask on testnet (Connect → Enable trading → order with TP/SL)
+- [x] Public web pages for judges: landing + trader rankings + trader profile
 - [ ] Builder fee: approveBuilderFee on the approval page + `builder` on copy orders
 - [ ] HIP-3 markets (`xyz:AVGO`-style) in the watcher and order execution
 - [ ] Desktop-wallet pairing with a short code (QR on the phone only helps a second phone)

@@ -20,5 +20,3 @@ Then:
 
 Update: `git pull && docker compose up -d --build`. Data (SQLite) lives in the `api-data` volume; back it up with
 `docker compose cp api:/data/copytrade.db ./backup.db`.
-
-Never add `HL_SECRET_KEY` here: the legacy web order ticket would trade that account for anyone who opens the site.

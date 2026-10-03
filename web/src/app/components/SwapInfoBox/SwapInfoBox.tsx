@@ -26,9 +26,11 @@ export type SwapInfoBoxProps = {
   size: number;             // base size (e.g., 0.45 ETH)
   leverage: number;
 
-  /** Bubble the settings up to the parent if you want to include in an order */
-  onChange?: (s: TpSlState) => void;
+  /** Exit prices to attach to the order as TP/SL triggers (null = off or not set). */
+  onChange?: (p: Protection) => void;
 };
+
+export type Protection = { takeProfit: number | null; stopLoss: number | null };
 
 function fmtUsd(n: number | null | undefined) {
   if (!n || !isFinite(n)) return '—';
@@ -58,7 +60,6 @@ export default function SwapInfoBox({
     slValue: '',
   });
 
-  useEffect(() => { onChange?.(state); }, [state, onChange]);
 
   // Derived exits + PnL
   const tpExit = useMemo(() => {
@@ -88,6 +89,13 @@ export default function SwapInfoBox({
 
   const tpPnl = useMemo(() => pnlAt(tpExit), [tpExit, entryPrice, size, side]);
   const slPnl = useMemo(() => pnlAt(slExit), [slExit, entryPrice, size, side]);
+
+  useEffect(() => {
+    onChange?.({
+      takeProfit: state.tpEnabled ? tpExit : null,
+      stopLoss: state.slEnabled ? slExit : null,
+    });
+  }, [tpExit, slExit, state.tpEnabled, state.slEnabled, onChange]);
 
   const rr =
     tpPnl !== null && slPnl !== null && slPnl !== 0
@@ -227,15 +235,10 @@ export default function SwapInfoBox({
 
           <div className={styles.rule} />
 
-          <div className={styles.actionRow}>
-            <button
-              className={styles.actionBtn}
-              disabled={!state.tpEnabled && !state.slEnabled}
-              title={!state.tpEnabled && !state.slEnabled ? 'Enable TP or SL' : 'Apply TP/SL to order'}
-              onClick={() => {/* purely UI; parent can hook into onChange state */}}
-            >
-              Apply to Order
-            </button>
+          <div className={styles.swapInfoRow}>
+            <span>
+              Sent with the order as Hyperliquid TP/SL triggers; they activate once the order fills.
+            </span>
           </div>
         </div>
       )}

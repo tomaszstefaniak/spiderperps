@@ -3,16 +3,15 @@
 import React from 'react';
 import { WatchlistProvider } from './context/WatchlistContext';
 import { CopyTradeConfigProvider } from './context/CopyTradeConfigContext';
-import { useNetwork } from '../hooks/useNetwork';
+import { NETWORK } from '@/lib/hl-browser';
 import { WalletProvider, useWallet } from './context/WalletContext';
 
 function Helper({ children }: { children: React.ReactNode }) {
-  const network = useNetwork();
   const { address } = useWallet();
 
   return (
     <CopyTradeConfigProvider>
-      <WatchlistProvider walletAddress={address || undefined} network={network}>
+      <WatchlistProvider walletAddress={address || undefined} network={NETWORK}>
         {children}
       </WatchlistProvider>
     </CopyTradeConfigProvider>

@@ -5,19 +5,32 @@ import styles from './PerpOrderTicket.module.css';
 import SwapSettingsModal from '../SwapSettingsModal/SwapSettingsModal';
 import { useBalances } from '@/hooks/useBalances';
 import MarketSelector from '../MarketSelector/MarketSelector';
-import { useStickyNumber, fmtUsd } from '../_shared/useStickyNumber';
 import MarkTicker from './MarkTicker';
-import SwapInfoBox from '../SwapInfoBox/SwapInfoBox';
+import SwapInfoBox, { type Protection } from '../SwapInfoBox/SwapInfoBox';
+import { useLiveMids } from '../_shared/LiveMidsContext';
+import { useWallet } from '@/app/context/WalletContext';
+import {
+  NETWORK,
+  enableTrading,
+  forgetAgent,
+  injectedProvider,
+  isUnknownAgentError,
+  loadAgent,
+  loadMarkets,
+  placeMarketOrder,
+  type Market,
+} from '@/lib/hl-browser';
 
 type Side = 'long' | 'short';
 const clamp = (n: number, lo: number, hi: number) => Math.min(Math.max(n, lo), hi);
 const pretty = (n: number, dp = 6) =>
   (isFinite(n) ? n : 0).toLocaleString(undefined, { maximumFractionDigits: dp });
-const rid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-const log = (id: string, label: string, data?: any) => console.log(`[perp:${id}] ${label}`, data ?? '');
+const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export default function PerpOrderTicket({ preset }: { preset?: { coin: string, side: Side, size?: number } | null }) {
+  const { address, providerType } = useWallet();
   const { withdrawable, positions, refresh } = useBalances();
+  const mids = useLiveMids();
 
   // ticket state
   const [side, setSide] = useState<Side>('long');
@@ -25,106 +38,47 @@ export default function PerpOrderTicket({ preset }: { preset?: { coin: string, s
   const [size, setSize] = useState('');
   const [slippagePct, setSlippagePct] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
-
-  // quote/mark
-  const [mark, setMark] = useState<number>(0);
-  const [quoting, setQuoting] = useState(false);
-  const [quoteErr, setQuoteErr] = useState<string | null>(null);
+  const [protection, setProtection] = useState<Protection>({ takeProfit: null, stopLoss: null });
 
   // submit state
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [blockMsg, setBlockMsg] = useState<string | null>(null);
 
-  // market selection
+  // market selection: straight from Hyperliquid's perp universe
   const [symbol, setSymbol] = useState('ETH');
-  const [markets, setMarkets] = useState<string[]>(['ETH']);
+  const [marketList, setMarketList] = useState<Market[]>([]);
+  const [marketError, setMarketError] = useState<string | null>(null);
+  const markets = useMemo(() => marketList.map((m) => m.name), [marketList]);
+  const market = useMemo(() => marketList.find((m) => m.name === symbol) ?? null, [marketList, symbol]);
+  const maxLeverage = market?.maxLeverage ?? 10;
+  const mark = mids[symbol] ?? 0;
 
-  // Preset effect
+  // the browser's trading key for this wallet (null until "Enable trading")
+  const [agentVersion, setAgentVersion] = useState(0);
+  const agent = useMemo(() => (address ? loadAgent(address) : null), [address, agentVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Preset: "Copy" from a watched wallet's position fills the ticket; the size stays editable.
   useEffect(() => {
-    if (preset) {
-      setSymbol(preset.coin.toUpperCase());
-      setSide(preset.side);
-      // Maybe set size? User requirement said "amount should be changed by user... but should be known what is original".
-      // I can set it but maybe user wants to scale it?
-      // Use logic: if size is provided, set it as base size (assuming user copies exact amount).
-      // User can edit it.
-      // Assuming preset.size is base asset size.
-      if (preset.size) setSize(String(preset.size));
-    }
+    if (!preset) return;
+    setSymbol(preset.coin);
+    setSide(preset.side);
+    if (preset.size) setSize(String(preset.size));
   }, [preset]);
 
-  const stickyMark = useStickyNumber(mark);
-
-  const [maxLeverage, setMaxLeverage] = useState<number>(10);
-
-  // fetch markets list once
   useEffect(() => {
     let alive = true;
-    (async () => {
-      try {
-        const r = await fetch('/api/perps/market', { cache: 'no-store' });
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const j = await r.json();
-        const list = Array.isArray(j?.markets) ? j.markets : [];
-        if (alive && list.length) {
-          setMarkets(list);
-          if (!list.includes(symbol)) setSymbol(list[0]);
-        }
-      } catch {
-        // keep default ETH if route not available
-      }
-    })();
+    loadMarkets()
+      .then((list) => {
+        if (!alive || !list.length) return;
+        setMarketList(list);
+        setSymbol((s) => (list.some((m) => m.name === s) ? s : list[0].name));
+      })
+      .catch((e) => alive && setMarketError(errorText(e)));
     return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // fetch mark every 6s and on symbol change (reusing your existing /api/quote shape)
-  useEffect(() => {
-    let alive = true;
-    const fetchMark = async () => {
-      try {
-        setQuoting(true);
-        setQuoteErr(null);
-        const r = await fetch('/api/quote', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ inputSymbol: symbol, outputSymbol: 'USDC', amount: '1' }),
-        });
-        const j = await r.json();
-        if (!r.ok) throw new Error(j?.error || j?.detail || 'quote failed');
-        const outRaw = Number(j?.outRaw ?? 0);
-        if (alive) setMark(outRaw || 0);
-      } catch (e: any) {
-        if (alive) setQuoteErr(e?.message || 'quote failed');
-      } finally {
-        if (alive) setQuoting(false);
-      }
-    };
-    fetchMark();
-    const t = setInterval(fetchMark, 6000);
-    return () => { alive = false; clearInterval(t); };
-  }, [symbol]);
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const r = await fetch(
-          `/api/perps/max-leverage?symbol=${encodeURIComponent(symbol)}`,
-          { cache: 'no-store' }
-        );
-        const j = await r.json();
-        const mx = Math.max(1, Number(j?.max ?? 10));
-        if (alive) setMaxLeverage(mx);
-      } catch {
-        if (alive) setMaxLeverage(10);
-      }
-    })();
-    return () => { alive = false; };
-  }, [symbol]);
-
-  // keep current leverage within the new cap
+  // keep current leverage within the market's cap
   useEffect(() => {
     setLeverage((prev) => Math.min(prev, maxLeverage));
   }, [maxLeverage]);
@@ -153,105 +107,99 @@ export default function PerpOrderTicket({ preset }: { preset?: { coin: string, s
     return sizeMode === 'base' ? (leverage > 0 ? notional / leverage : 0) : sizeNum;
   }, [sizeMode, notional, leverage, sizeNum]);
 
-  const canSubmit = useMemo(
-    () => isFinite(sizeNum) && sizeNum > 0 && mark > 0 && !busy,
-    [sizeNum, mark, busy]
-  );
+  const isLong = side === 'long';
+  // TP/SL must sit on the right side of the current price, or they'd fire immediately.
+  const protectionError =
+    mark > 0 && protection.stopLoss != null && (isLong ? protection.stopLoss >= mark : protection.stopLoss <= mark)
+      ? `Stop-loss must be ${isLong ? 'below' : 'above'} the current price.`
+      : mark > 0 && protection.takeProfit != null && (isLong ? protection.takeProfit <= mark : protection.takeProfit >= mark)
+        ? `Take-profit must be ${isLong ? 'above' : 'below'} the current price.`
+        : null;
+
+  const canSubmit = isFinite(sizeNum) && sizeNum > 0 && mark > 0 && !!market && !busy && !protectionError;
 
   const buttonLabel = busy
     ? 'Submitting…'
-    : blockMsg
-      ? 'Blocked'
-      : (canSubmit ? 'Open Position' : 'Enter an amount');
+    : !address
+      ? 'Connect a wallet to trade'
+      : !agent
+        ? 'Enable trading'
+        : blockMsg
+          ? 'Blocked'
+          : (canSubmit ? 'Open Position' : 'Enter an amount');
 
   // clear blockers/notices when user edits
   useEffect(() => { setBlockMsg(null); setNotice(null); }, [symbol, side, size, leverage]);
 
-  const doSubmit = useCallback(async () => {
-    const reqId = rid();
+  const doEnableTrading = useCallback(async () => {
+    if (!address) return;
+    const provider = injectedProvider(providerType);
+    if (!provider) { setNotice('No wallet found in this browser.'); return; }
     setBusy(true);
-    setBlockMsg(null);
-    setNotice('Placing order…');
-
+    setNotice('Approve the trading key in your wallet…');
     try {
-      const payload = {
-        coin: symbol.toUpperCase(),
-        side: side === 'long' ? ('buy' as const) : ('sell' as const),
-        size: baseSize,
-        slippage,
-      };
-      log(reqId, 'submit', payload);
-
-      const res = await fetch('/api/perps/order', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const txt = await res.text();
-      let body: any; try { body = JSON.parse(txt); } catch { body = { raw: txt }; }
-      log(reqId, 'response', { ok: res.ok, status: res.status, body });
-
-      if (!res.ok) {
-        const msg = body?.error || body?.detail || body?.raw || `Order failed (HTTP ${res.status})`;
-        // user-fixable rejects → block button
-        if (res.status === 409 && /open interest|interest.*cap|ioc|immediately match|liquidity/i.test(msg)) {
-          setBlockMsg(msg);
-          setNotice(null); // avoid double (green) notice
-        } else {
-          setNotice(msg);
-        }
-        return;
-      }
-
-      // success
-      const { accepted = false, filled = false } = body ?? {};
-      setBlockMsg(null);
-      if (filled) setNotice('Order filled!');
-      else if (accepted) setNotice('Order placed…checking fill');
-      else setNotice('Order sent!');
-
-      setSize('');
-      (async () => {
-        for (let i = 0; i < 6; i++) {     // ~3s total
-          await new Promise(r => setTimeout(r, 500));
-          await refresh();
-        }
-      })();
-    } catch (e: any) {
-      setNotice(e?.message || 'Order failed');
+      await enableTrading(address as `0x${string}`, provider);
+      setAgentVersion((v) => v + 1);
+      setNotice(`Trading enabled on ${NETWORK}. This browser can now place orders; it can never withdraw.`);
+    } catch (e) {
+      setNotice(`Enable trading failed: ${errorText(e)}`);
     } finally {
       setBusy(false);
     }
-  }, [symbol, side, baseSize, slippage, refresh]);
+  }, [address, providerType]);
+
+  const doSubmit = useCallback(async () => {
+    if (!agent || !market) return;
+    setBusy(true);
+    setBlockMsg(null);
+    setNotice('Placing order…');
+    try {
+      const r = await placeMarketOrder({
+        agent,
+        market,
+        isBuy: isLong,
+        size: baseSize,
+        mid: mark,
+        slippage,
+        leverage,
+        takeProfit: protection.takeProfit,
+        stopLoss: protection.stopLoss,
+      });
+      if (r.filledSize > 0) {
+        setNotice(`Filled ${pretty(r.filledSize)} ${symbol} at ${pretty(r.avgPx ?? 0, 6)}${r.protection.length ? ' · TP/SL set' : ''}`);
+        setSize('');
+      } else {
+        setBlockMsg('Nothing filled: the price moved beyond your slippage. Try a wider slippage.');
+      }
+      for (let i = 0; i < 4; i++) {
+        await new Promise((res) => setTimeout(res, 750));
+        await refresh();
+      }
+    } catch (e) {
+      if (address && isUnknownAgentError(e)) {
+        forgetAgent(address);
+        setAgentVersion((v) => v + 1);
+        setNotice('This browser\'s trading key was revoked or replaced. Enable trading again.');
+      } else {
+        setNotice(errorText(e));
+      }
+    } finally {
+      setBusy(false);
+    }
+  }, [agent, market, isLong, baseSize, mark, slippage, leverage, protection, symbol, refresh, address]);
 
   // keep pos for the per-market Position line
   const pos = useMemo(() => {
-    const p = (positions || []).find(
-      (pp) => String(pp.coin ?? '').toUpperCase() === symbol.toUpperCase(),
-    );
-    if (!p) return null;
-    const szi = Number(p.szi ?? 0);
-    const uPnl = Number(p.unrealizedPnl ?? 0);
-    return { szi, uPnl: Number.isFinite(uPnl) ? uPnl : 0 };
+    const p = positions.find((pp) => pp.coin === symbol);
+    return p ? { szi: p.szi, uPnl: p.unrealizedPnl } : null;
   }, [positions, symbol]);
-
-  // NEW: sum uPnL across *all* positions
-  const allUPnL = useMemo(() => {
-    return (positions || []).reduce((sum, pp) => {
-      const v = Number(pp.unrealizedPnl ?? 0);
-      return sum + (Number.isFinite(v) ? v : 0);
-    }, 0);
-  }, [positions]);
-
-  const totalBalance = (Number(withdrawable) || 0) + allUPnL;
 
   // treat notices that mention liquidity / cap as error
   const isErrorNotice =
-    !!blockMsg || /timeout|failed|reject|unavail|error|liquidity|interest|cap|http/i.test(String(notice || ''));
+    !!blockMsg || /timeout|failed|reject|unavail|error|liquidity|interest|cap|http|revoked|no wallet/i.test(String(notice || ''));
 
   const marketIconUrl = useMemo(
-    () => `https://app.hyperliquid.xyz/coins/${symbol.toUpperCase()}.svg`,
+    () => `https://app.hyperliquid.xyz/coins/${symbol}.svg`,
     [symbol]
   );
 
@@ -430,15 +378,16 @@ export default function PerpOrderTicket({ preset }: { preset?: { coin: string, s
                 {notice}
               </div>
             )}
-            {quoteErr && <div className={`${styles.notice} ${styles.error}`}>{quoteErr}</div>}
+            {(marketError || protectionError) && (
+              <div className={`${styles.notice} ${styles.error}`}>{protectionError ?? marketError}</div>
+            )}
 
             {/* Submit */}
             <button
               className={styles.swapButton}
-              onClick={doSubmit}
-              disabled={!canSubmit || !!blockMsg}
-              title={!canSubmit ? 'Enter amount' : blockMsg ? blockMsg : 'Open position'}
-              aria-disabled={!canSubmit || !!blockMsg}
+              onClick={agent ? doSubmit : doEnableTrading}
+              disabled={!address || busy || (!!agent && (!canSubmit || !!blockMsg))}
+              title={!agent ? 'Approve a trading key for this browser (one signature, it can never withdraw)' : blockMsg ?? 'Open position'}
             >
               {buttonLabel}
             </button>
@@ -448,12 +397,12 @@ export default function PerpOrderTicket({ preset }: { preset?: { coin: string, s
           <div className={styles.swapInfoWrap}>
             <SwapInfoBox
               rateLabel="Take Profit • Stop Loss"
-              badgeLabel="0.05% fee"
+              badgeLabel={protection.takeProfit || protection.stopLoss ? 'TP/SL on' : 'TP/SL'}
               entryPrice={mark || undefined}
               side={side}
               size={baseSize}
               leverage={leverage}
-              onChange={() => { }}
+              onChange={setProtection}
             />
           </div>
         </div>

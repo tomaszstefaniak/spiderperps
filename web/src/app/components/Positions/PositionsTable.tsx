@@ -1,157 +1,100 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useBalances } from '@/hooks/useBalances';
+
+import { useWallet } from '@/app/context/WalletContext';
 import { useLiveMids } from '@/app/components/_shared/LiveMidsContext';
+import { useBalances } from '@/hooks/useBalances';
+import { isUnknownAgentError, loadAgent, loadMarkets, placeMarketOrder } from '@/lib/hl-browser';
+
 import styles from './PositionsTable.module.css';
 
-const pretty = (n: number, dp = 4) =>
-  (isFinite(n) ? n : 0).toLocaleString(undefined, { maximumFractionDigits: dp });
-const signed = (n: number, dp = 2) =>
-  `${n > 0 ? '+' : ''}${pretty(n, dp)}`;
-const num = (x: any, d = 0) => {
-  const v = Number(x);
-  return Number.isFinite(v) ? v : d;
-};
+const pretty = (n: number, dp = 4) => (isFinite(n) ? n : 0).toLocaleString(undefined, { maximumFractionDigits: dp });
+const signed = (n: number, dp = 2) => `${n > 0 ? '+' : ''}${pretty(n, dp)}`;
 
+/** The connected wallet's open positions, with a reduce-only "Close" signed in the browser. */
 export default function PositionsTable() {
+  const { address } = useWallet();
   const { positions, refresh } = useBalances();
   const mids = useLiveMids();
-  const [busyOid, setBusyOid] = useState<string | null>(null);
+  const [closing, setClosing] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const closePos = async (coin: string, szi: number) => {
-    if (!szi) return;
-    setBusyOid(coin);
+  const close = async (coin: string, szi: number) => {
+    const agent = address ? loadAgent(address) : null;
+    if (!agent) {
+      setError('Enable trading on the order ticket first.');
+      return;
+    }
+    setClosing(coin);
+    setError(null);
     try {
-      const side = szi > 0 ? 'sell' : 'buy';
-      const size = Math.abs(szi);
-      const r = await fetch('/api/perps/order', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ coin, side, size, slippage: 0.01 }),
-      });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j?.error || j?.detail || `HTTP ${r.status}`);
-      setTimeout(() => refresh(), 600);
+      const market = (await loadMarkets()).find((m) => m.name === coin);
+      const mid = mids[coin];
+      if (!market || !mid) throw new Error(`${coin} isn't tradable right now`);
+      await placeMarketOrder({ agent, market, isBuy: szi < 0, size: Math.abs(szi), mid, slippage: 0.01, reduceOnly: true });
+      setTimeout(refresh, 750);
     } catch (e) {
-      console.error('close failed', e);
-      alert((e as any)?.message || 'Close failed');
+      setError(isUnknownAgentError(e) ? 'Trading key was revoked; enable trading again.' : e instanceof Error ? e.message : String(e));
     } finally {
-      setBusyOid(null);
+      setClosing(null);
     }
   };
 
-  if (!positions.length) {
-    return <div className={styles.empty}>No open positions.</div>;
-  }
+  if (!address) return <div className={styles.empty}>Connect a wallet to see your positions.</div>;
+  if (!positions.length) return <div className={styles.empty}>No open positions.</div>;
 
   return (
     <div className={styles.table}>
-      {/* Headers */}
       <div className={styles.headerRow}>
         <div>Market</div>
         <div className={styles.right}>Side</div>
         <div className={styles.right}>Size</div>
         <div className={`${styles.right} ${styles.hideSm}`}>Entry</div>
-        <div className={styles.right}>Fair</div>
+        <div className={styles.right}>Mark</div>
         <div className={styles.right}>Liq.</div>
-        <div className={styles.right}>TP/SL</div>
         <div className={styles.right}>Lev.</div>
-        <div className={styles.right}>Exposure (USDC)</div>
+        <div className={styles.right}>Value (USDC)</div>
         <div className={styles.right}>uPnL (USDC)</div>
         <div></div>
       </div>
 
       <div className={styles.rows}>
-        {positions.map((p: any) => {
-          // Robust extraction across possible shapes { coin, szi, ... } or { position: {...} }
-          const coin = String(p.coin ?? p.position?.coin ?? '').toUpperCase();
-          const szi = num(p.szi ?? p.position?.szi ?? p.position?.sz ?? p.size);
-          const entry = num(p.entryPx ?? p.position?.entryPx ?? p.position?.entry);
-          const rowMark = num(
-            p.markPx ?? p.indexPx ?? p.fairPx ?? p.position?.markPx ?? p.position?.indexPx
-          );
-
-          // live mark (fair): prefer mids; then any row mark; then 0
-          const markFallback = rowMark;
-          const fair = (mids[coin] ?? markFallback) ?? 0;
-
-          // TP/SL if present on row
-          const tp = num(p.tpPx ?? p.position?.tpPx ?? p.position?.tp);
-          const sl = num(p.slPx ?? p.position?.slPx ?? p.position?.sl);
-          const tpSlStr = tp || sl ? `${tp ? pretty(tp, 2) : '—'} / ${sl ? pretty(sl, 2) : '—'}` : '—';
-
-          // exposure & uPnL live
-          const notional = Math.abs(szi) * (fair || 0);
-
-          // leverage: prefer provided leverage; else derive from margin;
-          const marginUsd = num(
-            p.marginUsd ?? p.collateralUsd ?? p.position?.marginUsd ?? p.position?.collateralUsd
-          );
-          const levProvided = num(p.leverage ?? p.position?.leverage);
-          const lev = levProvided || (marginUsd > 0 && notional > 0 ? (notional / marginUsd) : 0);
-
-          // very simple liq approximation: Pliq ~= entry * (1 ± (1/lev) ∓ mmr)
-          const mmr = num(p.maintenanceMarginRatio ?? p.mmr, 0.005); // default 0.5%
-          const liq =
-            (lev > 0 && entry > 0)
-              ? (szi >= 0
-                  ? entry * (1 - 1 / Math.max(1, lev) + mmr)  // long
-                  : entry * (1 + 1 / Math.max(1, lev) - mmr)) // short
-              : 0;
-
-          // prefer live mark for uPnL if we have enough info
-          const upnlCalc = fair > 0 && entry > 0 ? (fair - entry) * szi : NaN;
-          const upnl = Number.isFinite(upnlCalc)
-            ? upnlCalc
-            : num(p.unrealizedPnl ?? p.uPnl ?? p.position?.uPnl ?? p.position?.uPnlUsd);
-
-          const sideLabel = szi > 0 ? 'Long' : szi < 0 ? 'Short' : '—';
-          const sideClass = szi > 0 ? styles.green : szi < 0 ? styles.red : '';
-
-          const iconUrl = `https://app.hyperliquid.xyz/coins/${coin}.svg`;
-
+        {positions.map((p) => {
+          const mark = mids[p.coin] ?? 0;
+          const side = p.szi > 0 ? styles.green : styles.red;
           return (
-            <div key={coin} className={styles.row}>
+            <div key={p.coin} className={styles.row}>
               <div className={styles.marketCell}>
                 <img
                   className={styles.coinIcon}
-                  src={iconUrl}
+                  src={`https://app.hyperliquid.xyz/coins/${p.coin}.svg`}
                   alt=""
                   aria-hidden="true"
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = 'none';
+                  }}
                 />
-                <span>{coin}</span>
+                <span>{p.coin}</span>
               </div>
-
-              <div className={`${styles.num} ${sideClass}`}>{sideLabel}</div>
-              <div className={`${styles.num} ${sideClass}`}>{pretty(szi, 6)}</div>
-
-              <div className={`${styles.num} ${styles.hideSm}`}>{entry ? pretty(entry, 2) : '—'}</div>
-              <div className={styles.num}>{fair ? pretty(fair, 2) : '—'}</div>
-              <div className={styles.num}>{liq ? pretty(liq, 2) : '—'}</div>
-              <div className={styles.num}>{tpSlStr}</div>
-              <div className={styles.num}>{lev ? `${pretty(lev, 2)}×` : '—'}</div>
-              <div className={styles.num}>{notional ? pretty(notional, 2) : '—'}</div>
-
-              <div className={`${styles.num} ${upnl >= 0 ? styles.green : styles.red}`}>
-                {signed(upnl, 2)}
-              </div>
-
+              <div className={`${styles.num} ${side}`}>{p.szi > 0 ? 'Long' : 'Short'}</div>
+              <div className={`${styles.num} ${side}`}>{pretty(p.szi, 6)}</div>
+              <div className={`${styles.num} ${styles.hideSm}`}>{pretty(p.entryPx, 4)}</div>
+              <div className={styles.num}>{mark ? pretty(mark, 4) : '—'}</div>
+              <div className={styles.num}>{p.liquidationPx ? pretty(p.liquidationPx, 4) : '—'}</div>
+              <div className={styles.num}>{p.leverage}×</div>
+              <div className={styles.num}>{mark ? pretty(Math.abs(p.szi) * mark, 2) : '—'}</div>
+              <div className={`${styles.num} ${p.unrealizedPnl >= 0 ? styles.green : styles.red}`}>{signed(p.unrealizedPnl, 2)}</div>
               <div className={styles.actCell}>
-                <button
-                  className={styles.smallPill}
-                  onClick={() => closePos(coin, szi)}
-                  disabled={busyOid === coin}
-                  title="Close position"
-                >
-                  {busyOid === coin ? 'Closing…' : 'Close'}
+                <button className={styles.smallPill} onClick={() => close(p.coin, p.szi)} disabled={closing === p.coin} title="Close position">
+                  {closing === p.coin ? 'Closing…' : 'Close'}
                 </button>
               </div>
             </div>
           );
         })}
       </div>
+      {error ? <div className={styles.empty}>{error}</div> : null}
     </div>
   );
 }

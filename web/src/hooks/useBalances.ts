@@ -1,106 +1,24 @@
 // src/hooks/useBalances.ts
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import useSWR from 'swr';
 
-type Position = {
-  coin: string;
-  szi: string | number;
-  entryPx?: string | number;
-  positionValue?: string | number;
-  unrealizedPnl?: string | number;
-  markPx?: string | number;
-  indexPx?: string | number;
-};
+import { useWallet } from '@/app/context/WalletContext';
+import { loadAccount, type Account } from '@/lib/hl-browser';
 
-type BalancesResp =
-  | {
-      source: 'user_state' | 'spot' | string;
-      withdrawable?: string;
-      crossMarginSummary?: { accountValue?: string; totalMarginUsed?: string };
-      marginSummary?: { accountValue?: string; totalMarginUsed?: string };
-      assetPositions?: Array<{ type?: string; position?: any }>;
-    }
-  | Record<string, any>;
+const EMPTY: Account = { equity: 0, withdrawable: 0, positions: [] };
 
+/** The connected wallet's Hyperliquid account, read directly from Hyperliquid and refreshed every 5s. */
 export function useBalances() {
-  const [raw, setRaw] = useState<BalancesResp | null>(null);
-  const [isLoading, setLoading] = useState(false);
-  const [error, setErr] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setErr(null);
-    try {
-      const r = await fetch('/api/balances', { cache: 'no-store' });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j?.error || j?.detail || `HTTP ${r.status}`);
-      setRaw(j);
-    } catch (e: any) {
-      setErr(e?.message || 'balances error');
-      setRaw(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { refresh(); }, [refresh]);
-
-  const withdrawable = useMemo(() => Number((raw as any)?.withdrawable || 0), [raw]);
-
-  const accountValue = useMemo(() => {
-    const s = (raw as any)?.crossMarginSummary || (raw as any)?.marginSummary;
-    return Number(s?.accountValue || 0);
-  }, [raw]);
-
-  const totalMarginUsed = useMemo(() => {
-    const s = (raw as any)?.crossMarginSummary || (raw as any)?.marginSummary;
-    return Number(s?.totalMarginUsed || 0);
-  }, [raw]);
-
-  const positions: Position[] = useMemo(() => {
-    const aps = Array.isArray((raw as any)?.assetPositions) ? (raw as any).assetPositions : [];
-    return aps
-      .map((x: any) => x?.position)
-      .filter(Boolean)
-      .map((p: any) => ({
-        coin: String(p?.coin || '').toUpperCase(),
-        szi: p?.szi ?? 0,
-        entryPx: p?.entryPx,
-        positionValue: p?.positionValue,
-        unrealizedPnl: p?.unrealizedPnl,
-        markPx: p?.markPx,       // if provided by API
-        indexPx: p?.indexPx,     // fallback
-      }));
-  }, [raw]);
-
-  // legacy balances map for anything else still using it (safe to keep)
-  const balances = useMemo<Record<string, number>>(() => {
-    const m: Record<string, number> = {};
-    // spot balances (if available)
-    const spot = (raw as any)?.balances;
-    if (Array.isArray(spot)) {
-      for (const b of spot) {
-        const sym = String(b?.coin || b?.ticker || '').toUpperCase();
-        if (!sym) continue;
-        const amt = Number(b?.available || b?.total || b?.balance || 0);
-        m[sym] = (m[sym] || 0) + (isFinite(amt) ? amt : 0);
-      }
-    }
-    return m;
-  }, [raw]);
-
+  const { address } = useWallet();
+  const { data, error, mutate } = useSWR(address ? ['account', address] : null, () => loadAccount(address as `0x${string}`), {
+    refreshInterval: 5000,
+  });
   return {
-    isLoading,
-    error,
-    refresh,
-    raw,
-    // perps essentials
-    withdrawable,
-    accountValue,
-    totalMarginUsed,
-    positions,
-    // legacy
-    balances,
+    ...(data ?? EMPTY),
+    error: error ? (error instanceof Error ? error.message : String(error)) : null,
+    refresh: async () => {
+      await mutate();
+    },
   };
 }

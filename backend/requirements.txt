@@ -1,7 +1,7 @@
 # Direct dependencies (transitive ones are resolved by pip).
 # Python 3.12 recommended: some eth-* wheels lag behind the newest CPython.
-hyperliquid-python-sdk==0.24.0
 fastapi==0.142.2
 uvicorn[standard]==0.54.0
 python-dotenv==1.2.4
 eth-account==0.13.7
+requests==2.32.5

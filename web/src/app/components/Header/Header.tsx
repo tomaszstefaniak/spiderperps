@@ -1,26 +1,20 @@
 'use client';
 
+import Link from 'next/link';
 import React, { useState, useMemo } from 'react';
 import styles from './Header.module.css';
 import { BACKGROUND_IMAGE, DEFAULT_BACKGROUND } from '@utils/config';
 import { useWatchlist } from '@/app/context/WatchlistContext';
 import { useWallet } from '@/app/context/WalletContext';
+import { NETWORK } from '@/lib/hl-browser';
 import WalletModal from '../WalletModal/WalletModal';
 
 const mydexLogo = '/assets/logo/eth_logo_mini_white.svg';
 const gearIcon = '/assets/images/gear-8.svg';
 
-type Health = {
-  ok?: boolean;
-  network?: 'mainnet' | 'testnet' | string;
-  trading_enabled?: boolean;
-};
-
 export default function Header() {
   const [showGearPopup, setShowGearPopup] = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
-  const [health, setHealth] = useState<Health | null>(null);
-  const [healthErr, setHealthErr] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
 
   const { watch, isWatched } = useWatchlist();
@@ -38,24 +32,9 @@ export default function Header() {
     }
   }, []);
 
-  // Health ping
-  React.useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const r = await fetch('/api/health', { cache: 'no-store' });
-        const j = await r.json();
-        if (!r.ok) throw new Error(j?.error || 'health error');
-        if (alive) setHealth(j);
-      } catch (e: any) {
-        if (alive) setHealthErr(e?.message || 'health error');
-      }
-    })();
-    return () => { alive = false; };
-  }, []);
-
-  const status = healthErr ? 'Disconnected' : health?.ok ? 'Connected' : 'Unknown';
-  const net = health?.network ? (health.network === 'testnet' ? 'testnet' : 'mainnet') : '';
+  // Orders go from this browser straight to Hyperliquid on this network.
+  const status = 'Hyperliquid';
+  const net = NETWORK;
 
   // Input parsing
   const term = searchTerm.trim();
@@ -79,7 +58,7 @@ export default function Header() {
 
       {/* LEFT: Logo */}
       <div className={styles.headerLeft}>
-        <a href="/"><img src={mydexLogo} alt="SpiderPerps home" className={styles.headerLogo} /></a>
+        <Link href="/"><img src={mydexLogo} alt="SpiderPerps home" className={styles.headerLogo} /></Link>
         <span className={styles.headerAppName}>SpiderPerps</span>
       </div>
 
@@ -151,7 +130,7 @@ export default function Header() {
           </div>
         )}
 
-        <div style={{ color: health?.ok ? '#72f2b6' : '#fca5a5' }}>
+        <div style={{ color: NETWORK === 'testnet' ? '#fbbf24' : '#72f2b6' }}>
           {status}{net ? ` · ${net}` : ''}
         </div>
       </div>

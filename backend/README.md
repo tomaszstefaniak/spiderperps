@@ -70,7 +70,3 @@ pytest -q                                  # 44 tests
 | `GET/POST /follows`, `DELETE /follows/{leader}` | who you follow (with what you've copied from each) |
 | `GET /proposals`, `POST /proposals/{id}/decision` | inbox; the phone reports approved + filled size, rejected, or failed |
 | `GET /discover`, `GET /leaders/{address}` | ranked traders; any wallet's copyability report |
-
-## Legacy endpoints
-
-`app.py` still serves the pre-hackathon endpoints used by the web order ticket (`/order/market`, `/balances`, …). They trade with the single server-side key in `.env` (`HL_SECRET_KEY`) and are meant for local testnet development only. **Don't expose them publicly**: anyone who can reach them can trade that account.

@@ -28,7 +28,7 @@ SpiderPerps finds traders worth following on Hyperliquid, alerts you the moment 
 |---|---|---|
 | [`backend/`](backend/README.md) | Watcher, copy sizing, copy ledger, push, sign-in, discovery scoring, `/v1` API | Python 3.12, FastAPI, SQLite |
 | [`mobile/`](mobile/README.md) | The app: Discover, Inbox, Review & approve, Following, Settings | Expo SDK 57 / React Native, TypeScript |
-| [`web/`](web/) | Phone approval page (`/link`), API proxy, legacy order ticket | Next.js 16, React 19 |
+| [`web/`](web/) | Landing page with trader rankings, trader profiles, the phone approval page (`/link`), and an order ticket that signs in the browser (`/trade`) | Next.js 16, React 19 |
 | [`deploy/`](deploy/README.md) | One-VPS production stack with automatic HTTPS | Docker Compose, Caddy |
 
 Order signing uses [`@nktkas/hyperliquid`](https://github.com/nktkas/hyperliquid). Its signatures were verified byte-for-byte against Hyperliquid's official Python SDK for orders with stop-loss/take-profit, leverage changes and agent approval.
@@ -54,6 +54,6 @@ Use **testnet** in the app to copy real mainnet traders with test funds.
 Work before the contest window (2026-09-14 → 2026-10-12) is kept in the history and labelled:
 
 - `web/`: an order-ticket UI forked from an earlier Solana DEX, Hyperliquid market orders through a FastAPI backend holding one server-side key, a "follow wallet" list and a view of a followed wallet's positions. The commit "Pre-hackathon baseline" holds work that was never committed before the contest (files last modified 2026-01-23).
-- `backend/`: the FastAPI order/market-data endpoints in `app.py`.
+- `backend/`: FastAPI order and market-data endpoints in `app.py` that traded with one server-side key. They were removed during the contest; trading now signs on the user's device.
 
-Everything else was built during the contest: the non-custodial copy-trading service (`backend/copytrade/`), discovery scoring, the mobile app, phone approval and sign-in, deployment, and the toolchain upgrades and bug fixes recorded in the history.
+Everything else was built during the contest: the non-custodial copy-trading service (`backend/copytrade/`), discovery scoring, the mobile app, phone approval and sign-in, browser-signed trading with real TP/SL on the web, the landing and trader pages, deployment, and the toolchain upgrades and bug fixes recorded in the history.

@@ -4,6 +4,7 @@ import React from 'react';
 import useSWR from 'swr';
 import styles from '../Positions/PositionsTable.module.css'; // Reuse styles
 import { useLiveMids } from '@/app/components/_shared/LiveMidsContext';
+import { loadAccount } from '@/lib/hl-browser';
 
 const pretty = (n: number, dp = 4) =>
     (isFinite(n) ? n : 0).toLocaleString(undefined, { maximumFractionDigits: dp });
@@ -14,15 +15,13 @@ const num = (x: any, d = 0) => {
     return Number.isFinite(v) ? v : d;
 };
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
 interface Props {
     address: string;
     onCopy: (pos: any) => void;
 }
 
 export default function WalletPositions({ address, onCopy }: Props) {
-    const { data: walletData, error, isLoading } = useSWR(address ? `/api/wallet/${address}/positions` : null, fetcher, { refreshInterval: 5000 });
+    const { data: walletData, error, isLoading } = useSWR(address ? ['positions', address] : null, () => loadAccount(address as `0x${string}`), { refreshInterval: 5000 });
     const mids = useLiveMids();
 
     if (!address) return <div className={styles.empty}>Select a wallet to see positions.</div>;
@@ -54,7 +53,7 @@ export default function WalletPositions({ address, onCopy }: Props) {
             <div className={styles.rows}>
                 {positions.map((p: any) => {
                     const coin = String(p.coin).toUpperCase();
-                    const szi = num(p.size);
+                    const szi = num(p.szi);
                     const entry = num(p.entryPx);
 
                     const fair = (mids[coin]) ?? 0;

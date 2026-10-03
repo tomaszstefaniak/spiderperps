@@ -1,59 +1,48 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import useSWR from 'swr';
-import styles from './TopFollowedWallets.module.css';
+
 import { useWatchlist } from '@/app/context/WatchlistContext';
-import { useWallet } from '@/app/context/WalletContext';
 
-const WALLET_EXPLORER = 'https://app.hyperliquid.xyz/explorer/address/';
+import styles from './TopFollowedWallets.module.css';
 
-const shorten = (a: string) => a.slice(0, 6) + '...' + a.slice(-4);
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+type Ranked = { address: string; score: number; metrics: { month_return: number; name?: string | null } };
+
+const shorten = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+const fetcher = (url: string) => fetch(url).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))));
 
 interface Props {
   onSelect?: (addr: string) => void;
 }
 
+/** Top traders by copyability score (from the copy-trading service). */
 export default function TopFollowedWallets({ onSelect }: Props) {
   const { watch, isWatched } = useWatchlist();
-  const { address } = useWallet();
-
-  const { data: followedData } = useSWR('/api/followed/top', fetcher, { refreshInterval: 10000 });
-
-  const topWallets = useMemo(() => {
-    if (followedData && Array.isArray(followedData.top)) {
-      return followedData.top;
-    }
-    return [];
-  }, [followedData]);
+  const { data, error } = useSWR<{ leaders: Ranked[] }>('/api/v1/discover?limit=10', fetcher, { refreshInterval: 60_000 });
+  const leaders = data?.leaders ?? [];
 
   return (
-    <div className={styles.listRows} data-title="Top followed wallets">
-      {topWallets.length === 0 && <div style={{ padding: '1rem', color: '#888', fontSize: '0.9rem' }}>No followed wallets yet.</div>}
-      {topWallets.map((item: any) => {
-        const addr = item.address;
-        const count = item.followers;
-        const watching = isWatched(addr);
-
+    <div className={styles.listRows} data-title="Top traders">
+      {error && <div style={{ padding: '1rem', color: '#888', fontSize: '0.9rem' }}>Rankings unavailable.</div>}
+      {!error && leaders.length === 0 && <div style={{ padding: '1rem', color: '#888', fontSize: '0.9rem' }}>Scoring traders…</div>}
+      {leaders.map((l) => {
+        const watching = isWatched(l.address);
+        const ret = l.metrics.month_return;
         return (
-          <div key={addr} className={styles.walletRow} onClick={() => onSelect?.(addr)} style={{ cursor: onSelect ? 'pointer' : 'default' }}>
+          <div key={l.address} className={styles.walletRow} onClick={() => onSelect?.(l.address)} style={{ cursor: 'pointer' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <div className={styles.link} title={addr}>
-                {shorten(addr)}
+              <div className={styles.link} title={l.address}>
+                {l.metrics.name || shorten(l.address)}
               </div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <span style={{ fontSize: '10px', color: '#666' }}>
-                  {count} followers
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '11px' }}>
+                <span style={{ color: '#72f2b6' }}>score {Math.round(l.score)}</span>
+                <span style={{ color: ret >= 0 ? '#72f2b6' : '#f87171' }}>
+                  {ret >= 0 ? '+' : ''}
+                  {(ret * 100).toFixed(0)}% 30d
                 </span>
-                <a
-                  href={WALLET_EXPLORER + addr}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  style={{ fontSize: '10px', color: '#3b82f6', textDecoration: 'none' }}
-                >
-                  Explorer ↗
+                <a href={`/trader/${l.address}`} onClick={(e) => e.stopPropagation()} style={{ color: '#3b82f6', textDecoration: 'none' }}>
+                  Profile ↗
                 </a>
               </div>
             </div>
@@ -63,11 +52,7 @@ export default function TopFollowedWallets({ onSelect }: Props) {
               disabled={watching}
               onClick={(e) => {
                 e.stopPropagation();
-                if (address) {
-                  watch(addr);
-                } else {
-                  alert("Please connect wallet first");
-                }
+                watch(l.address);
               }}
               style={{
                 marginLeft: 'auto',
@@ -77,10 +62,9 @@ export default function TopFollowedWallets({ onSelect }: Props) {
                 border: '1px solid #444',
                 borderRadius: '4px',
                 color: watching ? '#888' : '#fff',
-                cursor: watching ? 'default' : 'pointer'
-              }}
-            >
-              {watching ? 'Following' : 'Follow'}
+                cursor: watching ? 'default' : 'pointer',
+              }}>
+              {watching ? 'Watching' : 'Watch'}
             </button>
           </div>
         );
