@@ -83,6 +83,14 @@ def _coin_meta(sym: str):
     """
     return _perp_meta(sym) or _spot_meta(sym)
 
+def _canonical_coin(sym: str) -> str:
+    """
+    Map any casing (e.g. "KPEPE") to Hyperliquid's exact perp name ("kPEPE").
+    The SDK's name lookup is case-sensitive, so orders must use the canonical name.
+    """
+    meta = _perp_meta(sym)
+    return (meta or {}).get("name") or sym
+
 def _quantize(val: Decimal, decimals: int) -> Decimal:
     step = Decimal(10) ** (-decimals)
     return (val // step) * step
@@ -217,14 +225,9 @@ def perps_markets():
         syms = []
         seen = set()
         for x in uni:
-            # names are like "ETH", sometimes "ETH-USD" on older schemas;
-            # normalize to an alpha ticker.
-            name = (x.get("name") or x.get("asset") or x.get("coin") or "").upper()
-            if not name:
-                continue
-            if not name.isalpha():
-                name = "".join(ch for ch in name if ch.isalpha())
-            if not name or name in seen:
+            # Keep Hyperliquid's exact names: "kPEPE" and "0G" are real tickers.
+            name = x.get("name") or x.get("asset") or x.get("coin") or ""
+            if not name or x.get("isDelisted") or name in seen:
                 continue
             seen.add(name)
             syms.append(name)
@@ -359,8 +362,9 @@ def market_order(o: OrderReq):
     log.info("place %s %s q_sz=%s mid=%s px=%s slip=%s", o.side, sym, str(q_sz), str(mid), str(limit_px), str(o.slippage))
 
     try:
+        # The SDK applies `slippage` to the current mid itself; passing px=limit_px would apply it twice.
         resp = exchange.market_open(
-            o.coin, is_buy, float(q_sz), px=float(limit_px), slippage=o.slippage
+            _canonical_coin(sym), is_buy, float(q_sz), slippage=o.slippage
         )
 
         # Turn provider-side immediate reject (e.g. IOC no-liquidity) into a 409

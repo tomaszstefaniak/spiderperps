@@ -1,3 +1,6 @@
 .env
 .venv/
 __pycache__/
+.DS_Store
+# runtime data written by the service
+followed_wallets.json
