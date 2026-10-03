@@ -10,10 +10,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@nktkas/hyperliquid": "0.33.3",
     "next": "16.3.8",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "swr": "^2.5.1"
+    "swr": "^2.5.1",
+    "viem": "2.57.2"
   },
   "devDependencies": {
     "@types/node": "^24",
