@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { createWalletClient, custom, type EIP1193Provider } from 'viem';
 
 import styles from './link.module.css';
@@ -17,6 +17,13 @@ declare global {
 }
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+const noopSubscribe = () => () => {};
+
+/** Same page, opened inside MetaMask's in-app browser (MetaMask always uses https). */
+function openInMetaMask() {
+  const { host, pathname, search } = window.location;
+  window.location.href = `https://metamask.app.link/dapp/${host}${pathname}${search}`;
+}
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
@@ -28,9 +35,11 @@ export default function LinkApproval() {
   const params = useSearchParams();
   const agent = params.get('agent') ?? '';
   const network = (params.get('network') ?? '') as Network;
-  const name = params.get('name') ?? 'HL Copy';
+  const name = params.get('name') ?? 'SpiderPerps';
   const valid = ADDRESS.test(agent) && (network === 'mainnet' || network === 'testnet') && name.length <= 16;
 
+  // Wallet browsers inject window.ethereum before the page loads; the server render assumes none.
+  const hasWallet = useSyncExternalStore(noopSubscribe, () => !!window.ethereum, () => false);
   const [step, setStep] = useState<Step>('connect');
   const [account, setAccount] = useState<`0x${string}` | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +48,7 @@ export default function LinkApproval() {
     return (
       <div className={styles.card}>
         <h1>Invalid link</h1>
-        <p className={styles.muted}>Open this page from the &ldquo;Connect account&rdquo; screen in the HL Copy app.</p>
+        <p className={styles.muted}>Open this page from the &ldquo;Connect account&rdquo; screen in the SpiderPerps app.</p>
       </div>
     );
   }
@@ -99,7 +108,7 @@ export default function LinkApproval() {
     <div className={styles.card}>
       <h1>Approve your phone</h1>
       <p className={styles.muted}>
-        The HL Copy app on your phone created a trading key. Approving it lets the phone place copy trades on your Hyperliquid{' '}
+        The SpiderPerps app on your phone created a trading key. Approving it lets the phone place copy trades on your Hyperliquid{' '}
         {network} account after you confirm each one.
       </p>
 
@@ -118,10 +127,20 @@ export default function LinkApproval() {
         <li>✓ Revocable any time in Hyperliquid → API</li>
       </ul>
 
-      {step === 'connect' && (
+      {step === 'connect' && hasWallet && (
         <button className={styles.primary} onClick={connect}>
           Connect wallet
         </button>
+      )}
+      {step === 'connect' && !hasWallet && (
+        <>
+          <button className={styles.primary} onClick={openInMetaMask}>
+            Open in MetaMask
+          </button>
+          <p className={styles.muted}>
+            This browser has no wallet. Open the page in your wallet app&apos;s browser, or on a computer with a wallet extension.
+          </p>
+        </>
       )}
       {(step === 'approve' || step === 'approving') && account && (
         <>
@@ -138,6 +157,11 @@ export default function LinkApproval() {
         <div className={styles.done}>
           <strong>Done.</strong> Go back to the app; it signs in automatically.
         </div>
+      )}
+      {step === 'done' && (
+        <a className={styles.primary} href="spiderperps://">
+          Return to SpiderPerps
+        </a>
       )}
       {error && <p className={styles.error}>{error}</p>}
     </div>

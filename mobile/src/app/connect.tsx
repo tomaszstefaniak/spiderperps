@@ -19,6 +19,7 @@ import { useSession } from '@/lib/session';
 
 const C = Colors.dark;
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
+const PRIVATE_HOST = /^https?:\/\/(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
 
 export default function ConnectScreen() {
   const { signIn, authed } = useSession();
@@ -27,13 +28,23 @@ export default function ConnectScreen() {
   const [manual, setManual] = useState('');
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [showQr, setShowQr] = useState(false);
   const finishing = useRef(false);
 
   const link = agent
     ? `${WEB_URL}/link?agent=${agent.address}&network=${network}&name=${encodeURIComponent(agentName(agent.address))}`
     : null;
+  // MetaMask opens dapp links over https only, and phone apps can't reach a computer's local
+  // network - so wallet apps need the deployed https page; a dev server only works from a desktop browser.
   const metamaskLink = link ? `https://metamask.app.link/dapp/${link.replace(/^https?:\/\//, '')}` : null;
-  const localOnly = /localhost|127\.0\.0\.1/.test(WEB_URL);
+  const devUrl = !WEB_URL.startsWith('https://') || PRIVATE_HOST.test(WEB_URL);
+
+  async function copyLink() {
+    if (!link) return;
+    await Clipboard.setStringAsync(link);
+    setCopied(true);
+  }
 
   async function start() {
     setError(null);
@@ -105,30 +116,49 @@ export default function ConnectScreen() {
     <Screen>
       <ThemedText type="default">Approve this phone on Hyperliquid</ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
-        This phone made a trading-only key ({shortAddr(agent.address)}). Open the link with the wallet that holds your Hyperliquid
-        account and sign once. The key can place orders for you but can never withdraw or transfer funds, and you can revoke it on
+        This phone made a trading-only key ({shortAddr(agent.address)}). Approve it once with the wallet that holds your
+        Hyperliquid account. The key can place orders for you but can never withdraw or transfer funds, and you can revoke it on
         Hyperliquid any time.
       </ThemedText>
 
-      <Card style={styles.center}>
-        {link ? (
-          <View style={styles.qr}>
-            <QRCode value={link} size={200} backgroundColor="#FFFFFF" color="#000000" />
-          </View>
-        ) : null}
-        <ThemedText type="small" themeColor="textSecondary" style={styles.centerText}>
-          Scan with a desktop wallet browser, or open it on this phone:
-        </ThemedText>
-      </Card>
-
-      <Button title="Open in MetaMask" onPress={() => metamaskLink && Linking.openURL(metamaskLink)} />
-      <Button title="Copy link" kind="secondary" onPress={() => link && Clipboard.setStringAsync(link)} />
-      {localOnly ? (
-        <ThemedText type="small" style={{ color: C.warning }}>
-          Dev setup: the approval page is on {WEB_URL}, which only this computer can open. Copy the link into a browser on this
-          Mac, or set EXPO_PUBLIC_WEB_URL to a public URL.
-        </ThemedText>
-      ) : null}
+      {devUrl ? (
+        <Card style={styles.warn}>
+          <ThemedText type="smallBold" style={{ color: C.warning }}>
+            Development link
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            The approval page is on {WEB_URL}, which wallet apps on a phone can&apos;t open: they need a public https address.
+            Copy the link into a desktop browser with the MetaMask extension; this screen continues on its own once you approve.
+          </ThemedText>
+          <Button title={copied ? 'Link copied' : 'Copy link'} onPress={copyLink} />
+        </Card>
+      ) : (
+        <>
+          <Button title="Approve in MetaMask" onPress={() => metamaskLink && Linking.openURL(metamaskLink)} />
+          <ThemedText type="small" themeColor="textSecondary" style={styles.centerText}>
+            Opens MetaMask on this phone. Approve, then come back here.
+          </ThemedText>
+          <Button title={copied ? 'Link copied' : 'Other wallet: copy link'} kind="secondary" onPress={copyLink} />
+          <ThemedText type="small" themeColor="textSecondary" style={styles.centerText}>
+            Paste it into your wallet app&apos;s built-in browser.
+          </ThemedText>
+          <Button
+            title={showQr ? 'Hide QR code' : 'Wallet on another phone? Show QR code'}
+            kind="ghost"
+            onPress={() => setShowQr((v) => !v)}
+          />
+          {showQr && metamaskLink ? (
+            <Card style={styles.center}>
+              <View style={styles.qr}>
+                <QRCode value={metamaskLink} size={200} backgroundColor="#FFFFFF" color="#000000" />
+              </View>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.centerText}>
+                Scan with the other phone&apos;s camera: it opens the approval page in MetaMask.
+              </ThemedText>
+            </Card>
+          ) : null}
+        </>
+      )}
 
       <Card>
         <ThemedText type="small" themeColor="textSecondary">
@@ -161,6 +191,7 @@ export default function ConnectScreen() {
 
 const styles = StyleSheet.create({
   selected: { borderColor: C.accent },
+  warn: { borderColor: C.warning },
   between: { justifyContent: 'space-between' },
   center: { alignItems: 'center' },
   centerText: { textAlign: 'center' },

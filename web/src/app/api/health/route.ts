@@ -1,7 +1,7 @@
 // app/api/health/route.ts
 import { NextResponse } from "next/server";
 
-const svc = process.env.HL_SERVICE_URL || "http://127.0.0.1:8787";
+const svc = process.env.HL_SERVICE_URL || "http://127.0.0.1:8790";
 
 export async function GET() {
   try {

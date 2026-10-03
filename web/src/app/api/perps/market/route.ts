@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic"; // avoid static optimization
 
-const svc = process.env.HL_SERVICE_URL || "http://127.0.0.1:8787";
+const svc = process.env.HL_SERVICE_URL || "http://127.0.0.1:8790";
 
 export async function GET() {
   try {

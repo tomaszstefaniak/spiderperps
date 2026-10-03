@@ -16,7 +16,7 @@ LEADERBOARD_URL = "https://stats-data.hyperliquid.xyz/Mainnet/leaderboard"
 # account can paper-copy real mainnet traders.
 LEADER_NETWORK = "mainnet"
 
-APP_NAME = os.getenv("COPY_APP_NAME", "HL Copy")
+APP_NAME = os.getenv("COPY_APP_NAME", "SpiderPerps")
 DB_PATH = Path(os.getenv("COPY_DB_PATH", str(BASE_DIR / "copytrade.db")))
 
 WATCHER_ENABLED = os.getenv("COPY_WATCHER_ENABLED", "true").lower() == "true"

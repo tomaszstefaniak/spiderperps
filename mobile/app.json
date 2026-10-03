@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "HL Copy",
-    "slug": "hl-copy",
+    "name": "SpiderPerps",
+    "slug": "spiderperps",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "hlcopy",
+    "scheme": "spiderperps",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0B0C0E",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.tomaszstefaniak.hlcopy",
+      "bundleIdentifier": "com.spiderperps",
       "supportsTablet": false,
       "infoPlist": {
         "NSFaceIDUsageDescription": "Face ID confirms each copy trade before your phone signs it.",
@@ -18,7 +18,7 @@
       }
     },
     "android": {
-      "package": "com.tomaszstefaniak.hlcopy",
+      "package": "com.spiderperps",
       "adaptiveIcon": {
         "backgroundColor": "#0B0C0E",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 import LinkApproval from './LinkApproval';
 import styles from './link.module.css';
 
-export const metadata = { title: 'Approve your phone · HL Copy' };
+export const metadata = { title: 'Approve your phone · SpiderPerps' };
 
 export default function LinkPage() {
   return (

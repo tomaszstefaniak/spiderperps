@@ -54,7 +54,7 @@ Python 3.12 (some `eth-*` wheels lag behind the newest CPython).
 python3.12 -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
 cp .env.example .env          # copy-trading needs no keys; see the file for tuning knobs
-uvicorn app:app --host 0.0.0.0 --port 8787 --reload
+uvicorn app:app --host 0.0.0.0 --port 8790 --reload
 python -m copytrade.discovery --deep 120   # optional: score traders now instead of waiting for the background job
 pytest -q                                  # 44 tests
 ```

@@ -1,7 +1,7 @@
 // Proxies /api/v1/* to the copy-trading API in hl-service (same-origin for the browser).
 import { NextResponse, type NextRequest } from "next/server";
 
-const svc = process.env.HL_SERVICE_URL || "http://127.0.0.1:8787";
+const svc = process.env.HL_SERVICE_URL || "http://127.0.0.1:8790";
 
 type Ctx = { params: Promise<{ path: string[] }> };
 

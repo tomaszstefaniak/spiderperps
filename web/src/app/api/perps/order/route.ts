@@ -1,7 +1,7 @@
 // src/app/api/perps/order/route.ts
 import { NextResponse } from "next/server";
 
-const svc = process.env.HL_SERVICE_URL || "http://127.0.0.1:8787";
+const svc = process.env.HL_SERVICE_URL || "http://127.0.0.1:8790";
 const who = process.env.NEXT_PUBLIC_HL_ACCOUNT || process.env.HL_ACCOUNT_ADDRESS || "";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

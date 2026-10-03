@@ -40,5 +40,5 @@ export async function forgetAgent(network: Network): Promise<void> {
 
 /** Named agents are capped at 16 characters by Hyperliquid; a per-install suffix keeps two phones apart. */
 export function agentName(agentAddress: string): string {
-  return `HL Copy ${agentAddress.slice(2, 6)}`;
+  return `SpiderPerps ${agentAddress.slice(2, 6)}`;
 }
