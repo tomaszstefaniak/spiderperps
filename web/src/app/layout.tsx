@@ -2,24 +2,17 @@
 import '@/app/polyfills/ssr-localstorage';
 import type { Metadata } from "next";
 import "./globals.css";
-import Providers from "./providers";
-import { LiveMidsProvider } from "@/app/components/_shared/LiveMidsContext";
 
 export const metadata: Metadata = {
-  title: "dex-hl",
-  description: "Hyperliquid Perps",
+  title: "SpiderPerps: copy top Hyperliquid traders from your phone",
+  description:
+    "Follow the best Hyperliquid traders, get their moves as one-tap copies on your phone, approve every trade. Your keys never leave your devices.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        <Providers>
-          <LiveMidsProvider>
-            {children}
-          </LiveMidsProvider>
-        </Providers>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

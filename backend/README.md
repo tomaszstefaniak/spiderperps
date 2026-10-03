@@ -1,6 +1,6 @@
-# hl-service
+# SpiderPerps backend
 
-Backend for **HL Copy**: follow the best Hyperliquid traders and copy their moves from your phone, approving every trade yourself.
+Backend for **SpiderPerps**: follow the best Hyperliquid traders and copy their moves from your phone, approving every trade yourself.
 
 The service **never holds a user key**. It watches the traders you follow, sizes a copy of each of their moves for your account, and pushes it to your phone. Your phone signs the order with a Hyperliquid *agent key* that lives in the phone's secure storage and sends it to Hyperliquid directly. Agent keys can place orders but can't withdraw or transfer funds, and you can revoke them on Hyperliquid at any time.
 
@@ -9,7 +9,7 @@ The service **never holds a user key**. It watches the traders you follow, sizes
         │ poll positions every 5s
         ▼
  ┌─────────────┐   proposal (sized, with stop-loss)   ┌──────────┐  signed order  ┌─────────────┐
- │ hl-service  │ ───────────── push ────────────────▶ │  phone   │ ─────────────▶ │ Hyperliquid │
+ │  backend    │ ───────────── push ────────────────▶ │  phone   │ ─────────────▶ │ Hyperliquid │
  │ (no keys)   │ ◀──── decision + filled size ─────── │ (agent   │                └─────────────┘
  └─────────────┘                                      │  key)    │
                                                       └──────────┘

@@ -1,98 +1,158 @@
-'use client';
+import Link from 'next/link';
+import { connection } from 'next/server';
 
-import React, { useState } from 'react';
-import Header from './components/Header/Header';
-import styles from './page.module.css';
+import { getRanking, type RankedLeader } from '@/lib/copytrade';
+import { ago, hold, pct, shortAddr, usd } from '@/lib/format';
 
-import PerpOrderTicket from './components/PerpOrderTicket/PerpOrderTicket';
-import TopFollowedWallets from './components/TopFollowedWallets/TopFollowedWallets';
-import WatchingWallets from './components/WatchingWallets/WatchingWallets';
-import PositionsTable from './components/Positions/PositionsTable';
-import WalletPositions from './components/Positions/WalletPositions';
-import ExpandableCard from './components/ExpandableCard/ExpandableCard';
+import AddressSearch from './AddressSearch';
+import styles from './landing.module.css';
 
-export default function Page() {
-  const [selectedWallet, setSelectedWallet] = useState<string | null>(null);
-  const [presetOrder, setPresetOrder] = useState<{ coin: string, side: 'long' | 'short', size?: number } | null>(null);
+const STEPS = [
+  {
+    title: 'Pick traders worth copying',
+    body: "We screen Hyperliquid's ~47k accounts and score the best on deposit-adjusted returns, drawdown, consistency and how easy they are to follow by hand.",
+  },
+  {
+    title: 'Get their moves on your phone',
+    body: 'When someone you follow opens, adds to, cuts or closes a position, you get a notification with a copy sized to your account.',
+  },
+  {
+    title: 'Approve, and your phone signs',
+    body: 'Face ID, then your phone signs the order and sends it straight to Hyperliquid, with your own stop-loss attached.',
+  },
+];
 
-  const shorten = (a: string) => `${a.slice(0, 6)}...${a.slice(-4)}`;
+export default async function Home() {
+  await connection(); // live rankings: render per request, never at build time
+  let ranking: Awaited<ReturnType<typeof getRanking>> | null = null;
+  try {
+    ranking = await getRanking(25);
+  } catch {
+    ranking = null;
+  }
+  const status = ranking?.status;
 
   return (
-    <main className={styles.main}>
-      <Header />
+    <main className={styles.page}>
+      <nav className={styles.nav}>
+        <span className={styles.brand}>SpiderPerps</span>
+        <div className={styles.navLinks}>
+          <a href="#rankings">Rankings</a>
+          <Link href="/trade">Trade</Link>
+        </div>
+      </nav>
 
-      <div className={styles.content}>
-        <div className={styles.stack}>
-          {/* Top row */}
-          <div className={styles.topRow}>
-            {/* Left: Top Followed (collapsed by default; sticky) */}
-            <div className={styles.sidebarLeft}>
-              <ExpandableCard
-                title="Top Followed Wallets"
-                right="Followers"
-                storageKey="ui.exp.top"
-                defaultOpen={false}
-              >
-                <TopFollowedWallets onSelect={setSelectedWallet} />
-              </ExpandableCard>
-            </div>
+      <section className={styles.hero}>
+        <h1>
+          Copy the best Hyperliquid traders.
+          <br />
+          <span className={styles.accent}>Approve every trade. Keep your keys.</span>
+        </h1>
+        <p className={styles.lead}>
+          SpiderPerps watches top traders and sends their moves to your phone as one-tap copies, sized to your account and
+          protected by your own stop-loss. Your phone signs every order; our server never holds a key.
+        </p>
+        <div className={styles.badges}>
+          <span>iPhone app: TestFlight beta</span>
+          <span>Non-custodial</span>
+          <span>Testnet paper-copying</span>
+        </div>
+      </section>
 
-            {/* Center: Perp ticket */}
-            <div className={styles.ticketWrap}>
-              <PerpOrderTicket preset={presetOrder} />
-            </div>
-
-            {/* Right: Watching (collapsed by default; sticky) */}
-            <div className={styles.sidebarRight}>
-              <ExpandableCard
-                title="Watching"
-                storageKey="ui.exp.watch"
-                defaultOpen={false}
-              >
-                <WatchingWallets onSelect={setSelectedWallet} />
-              </ExpandableCard>
-            </div>
+      <section className={styles.steps}>
+        {STEPS.map((s, i) => (
+          <div key={s.title} className={styles.card}>
+            <div className={styles.stepNo}>{i + 1}</div>
+            <h3>{s.title}</h3>
+            <p>{s.body}</p>
           </div>
+        ))}
+      </section>
 
-          {/* Positions (collapsed by default; sticky) */}
-          <div className={styles.positionsWrap}>
-            <ExpandableCard
-              title={selectedWallet ? `Positions: ${shorten(selectedWallet)}` : "Positions"}
-              storageKey="ui.exp.positions"
-              defaultOpen={false}
-            >
-              {selectedWallet ? (
-                <div style={{ position: 'relative' }}>
-                  <button
-                    onClick={() => setSelectedWallet(null)}
-                    style={{
-                      position: 'absolute',
-                      top: '-2.5rem',
-                      right: '0rem',
-                      padding: '4px 8px',
-                      background: '#333',
-                      border: '1px solid #444',
-                      color: '#fff',
-                      borderRadius: '4px',
-                      fontSize: '0.8.5rem',
-                      cursor: 'pointer',
-                      zIndex: 10
-                    }}
-                  >
-                    Back to My Positions
-                  </button>
-                  <WalletPositions
-                    address={selectedWallet}
-                    onCopy={(pos) => setPresetOrder({ coin: pos.coin, side: pos.side, size: pos.size })}
-                  />
-                </div>
-              ) : (
-                <PositionsTable />
-              )}
-            </ExpandableCard>
+      <section id="rankings" className={styles.section}>
+        <div className={styles.sectionHead}>
+          <h2>Trader rankings</h2>
+          <p className={styles.muted}>
+            {status?.screened
+              ? `${status.screened.toLocaleString()} of ${status.accounts?.toLocaleString()} accounts pass the screen · updated ${ago(status.refreshed_at)}`
+              : 'Scoring traders…'}
+          </p>
+        </div>
+        <AddressSearch />
+        {ranking ? <Ranking leaders={ranking.leaders} /> : <p className={styles.muted}>Rankings are temporarily unavailable.</p>}
+        <p className={styles.footnote}>
+          Returns are time-weighted from Hyperliquid&apos;s PnL history, so deposits and withdrawals don&apos;t count as
+          performance. Past results don&apos;t predict future ones. Not investment advice.
+        </p>
+      </section>
+
+      <section className={styles.section}>
+        <h2>Your keys stay yours</h2>
+        <div className={styles.steps}>
+          <div className={styles.card}>
+            <h3>Trading-only key</h3>
+            <p>Your phone creates a Hyperliquid agent key and keeps it in the iOS Keychain. You approve it once from your wallet.</p>
+          </div>
+          <div className={styles.card}>
+            <h3>Can&apos;t withdraw</h3>
+            <p>Agent keys can place and cancel orders but can never withdraw or transfer funds. Revoke them on Hyperliquid any time.</p>
+          </div>
+          <div className={styles.card}>
+            <h3>No keys on our server</h3>
+            <p>The server only watches public data and proposes copies. Orders go from your phone straight to Hyperliquid.</p>
           </div>
         </div>
-      </div>
+      </section>
+
+      <footer className={styles.footer}>
+        Built for the Colosseum Crypto World&apos;s Fair · Hyperliquid track
+      </footer>
     </main>
+  );
+}
+
+function Ranking({ leaders }: { leaders: RankedLeader[] }) {
+  return (
+    <div className={styles.tableWrap}>
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Trader</th>
+            <th>Score</th>
+            <th>30d</th>
+            <th>Max DD</th>
+            <th className={styles.hideSm}>Holds</th>
+            <th className={styles.hideSm}>Equity</th>
+            <th className={styles.hideSm}>Why</th>
+          </tr>
+        </thead>
+        <tbody>
+          {leaders.map((l, i) => {
+            const m = l.metrics;
+            return (
+              <tr key={l.address}>
+                <td className={styles.muted}>{i + 1}</td>
+                <td>
+                  <Link href={`/trader/${l.address}`} className={styles.addr}>
+                    {m.name || shortAddr(l.address)}
+                  </Link>
+                </td>
+                <td>
+                  <span className={l.score >= 50 ? styles.scoreHigh : l.score >= 30 ? styles.scoreMid : styles.scoreLow}>
+                    {Math.round(l.score)}
+                  </span>
+                </td>
+                <td className={m.month_return >= 0 ? styles.pos : styles.neg}>{pct(m.month_return, true)}</td>
+                <td className={m.month_max_dd > 0.4 ? styles.neg : undefined}>{pct(m.month_max_dd)}</td>
+                <td className={styles.hideSm}>{hold(m.median_hold_h)}</td>
+                <td className={styles.hideSm}>{usd(m.equity)}</td>
+                <td className={`${styles.hideSm} ${styles.muted}`}>{m.reasons.slice(3).join(' · ')}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }

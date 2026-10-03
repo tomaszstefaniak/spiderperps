@@ -1,0 +1,47 @@
+.address {
+  font-family: ui-monospace, Menlo, monospace;
+  word-break: break-all;
+  margin: 0 0 16px;
+}
+
+.scoreRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 24px;
+}
+
+.chips span {
+  border: 1px solid #2a2e34;
+  border-radius: 999px;
+  padding: 4px 12px;
+  color: #9aa0a8;
+  font-size: 14px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.stat {
+  background: #17191c;
+  border: 1px solid #2a2e34;
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stat strong {
+  font-size: 20px;
+}

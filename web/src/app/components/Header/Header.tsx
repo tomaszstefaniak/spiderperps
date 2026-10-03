@@ -79,8 +79,8 @@ export default function Header() {
 
       {/* LEFT: Logo */}
       <div className={styles.headerLeft}>
-        <img src={mydexLogo} alt="logo" className={styles.headerLogo} />
-        <span className={styles.headerAppName}>mydex</span>
+        <a href="/"><img src={mydexLogo} alt="SpiderPerps home" className={styles.headerLogo} /></a>
+        <span className={styles.headerAppName}>SpiderPerps</span>
       </div>
 
       {/* CENTER: Search */}

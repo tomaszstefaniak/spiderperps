@@ -1,0 +1,45 @@
+# Production stack for one VPS: `docker compose up -d --build` from this folder.
+# The server holds no private keys: users' orders are signed on their phones.
+services:
+  api:
+    build: ../backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      COPY_DB_PATH: /data/copytrade.db
+    volumes:
+      - api-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8790/v1/discover?limit=1', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  web:
+    build: ../web
+    restart: unless-stopped
+    environment:
+      HL_SERVICE_URL: http://api:8790
+    depends_on:
+      - api
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    env_file: .env
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - api
+      - web
+
+volumes:
+  api-data:
+  caddy-data:
+  caddy-config:

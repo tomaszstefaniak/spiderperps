@@ -1,0 +1,19 @@
+# HTTPS certificates are issued automatically by Let's Encrypt for {$DOMAIN}
+# (DNS A record -> this server, ports 80 and 443 open).
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# Copy-trading API used by the mobile app.
+	handle /v1/* {
+		reverse_proxy api:8790
+	}
+
+	# Web app: landing + trader rankings, the phone approval page (/link), /api/* routes.
+	handle {
+		reverse_proxy web:3000
+	}
+}
