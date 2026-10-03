@@ -36,9 +36,6 @@
       "@utils/*": [
         "./src/utils/*"
       ],
-      "@lib/*": [
-        "./src/lib/*"
-      ],
       "@context/*": [
         "./src/app/context/*"
       ]

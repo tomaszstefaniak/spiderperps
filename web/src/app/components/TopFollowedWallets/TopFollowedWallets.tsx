@@ -4,20 +4,9 @@ import React, { useMemo } from 'react';
 import useSWR from 'swr';
 import styles from './TopFollowedWallets.module.css';
 import { useWatchlist } from '@/app/context/WatchlistContext';
-import { useCopyMode } from '@/app/context/CopyModeContext';
 import { useWallet } from '@/app/context/WalletContext';
 
-// Algo placeholders
-const topAlgos: { id: string; followers: number }[] = [
-  { id: 'rsi-breakout-v2', followers: 124 },
-  { id: 'mean-revert-x', followers: 97 },
-  { id: 'trend-follow-ema9-21', followers: 88 },
-  { id: 'vol-spike-catcher', followers: 73 },
-  { id: 'grid-maker-lite', followers: 61 },
-];
-
 const WALLET_EXPLORER = 'https://app.hyperliquid.xyz/explorer/address/';
-const ALGO_EXPLORER = '/algorithms/'; // adjust when you have a real route
 
 const shorten = (a: string) => a.slice(0, 6) + '...' + a.slice(-4);
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -27,8 +16,7 @@ interface Props {
 }
 
 export default function TopFollowedWallets({ onSelect }: Props) {
-  const { list, watch, isWatched } = useWatchlist();
-  const { mode } = useCopyMode();
+  const { watch, isWatched } = useWatchlist();
   const { address } = useWallet();
 
   const { data: followedData } = useSWR('/api/followed/top', fetcher, { refreshInterval: 10000 });
@@ -40,36 +28,6 @@ export default function TopFollowedWallets({ onSelect }: Props) {
     return [];
   }, [followedData]);
 
-  // Bare content only
-  if (mode === 'algo') {
-    return (
-      <div className={styles.listRows} data-title="Top followed algorithms">
-        {topAlgos.map(({ id, followers }) => (
-          <div key={id} className={styles.walletRow}>
-            {/* Algo rows remain as links/info for now */}
-            <a
-              href={ALGO_EXPLORER + id}
-              target="_blank"
-              rel="noreferrer"
-              className={styles.link}
-              title={id}
-            >
-              {id}
-            </a>
-            <span
-              className={`${styles.count} ${followers > 0 ? styles.countActive : ''}`}
-              aria-label={`${followers} users following`}
-              title={`${followers} users following`}
-            >
-              {followers}
-            </span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // wallet mode
   return (
     <div className={styles.listRows} data-title="Top followed wallets">
       {topWallets.length === 0 && <div style={{ padding: '1rem', color: '#888', fontSize: '0.9rem' }}>No followed wallets yet.</div>}

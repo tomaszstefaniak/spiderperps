@@ -4,7 +4,6 @@ import React, { useState, useMemo } from 'react';
 import styles from './Header.module.css';
 import { BACKGROUND_IMAGE, DEFAULT_BACKGROUND } from '@utils/config';
 import { useWatchlist } from '@/app/context/WatchlistContext';
-import { useCopyMode } from '@/app/context/CopyModeContext';
 import { useWallet } from '@/app/context/WalletContext';
 import WalletModal from '../WalletModal/WalletModal';
 
@@ -17,18 +16,13 @@ type Health = {
   trading_enabled?: boolean;
 };
 
-interface HeaderProps {
-  onFollow?: (addressOrAlgo: string) => void;
-}
-
-export default function Header({ onFollow }: HeaderProps) {
+export default function Header() {
   const [showGearPopup, setShowGearPopup] = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [health, setHealth] = useState<Health | null>(null);
   const [healthErr, setHealthErr] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const { mode, setMode } = useCopyMode();
   const { watch, isWatched } = useWatchlist();
   const { address, connect, disconnect } = useWallet();
 
@@ -66,33 +60,12 @@ export default function Header({ onFollow }: HeaderProps) {
   // Input parsing
   const term = searchTerm.trim();
   const isEthAddress = useMemo(() => /^0x[0-9A-Fa-f]{40}$/.test(term), [term]);
-  const isAlgoId = useMemo(() => /^[a-z0-9][a-z0-9-_]{2,}$/i.test(term), [term]); // simple slug rule
-
-  // Wallet validation only for wallet mode (kept for clarity)
-  const isValidWalletAddress = useMemo(
-    () => mode === 'wallet' && isEthAddress,
-    [mode, isEthAddress]
-  );
 
   const handleFollow = () => {
-    if (!term) return;
-
-    if (mode === 'wallet') {
-      if (!isEthAddress) return;                   // block non-addresses in wallet mode
-      if (!isWatched(term)) watch(term);
-      setSearchTerm('');
-      return;
-    }
-
-    // mode === 'algo'
-    if (!isAlgoId || isEthAddress) return;         // block addresses & junk in algo mode
-    onFollow?.(term);                               // hook for your algo-follow logic
+    if (!isEthAddress) return;
+    if (!isWatched(term)) watch(term);
     setSearchTerm('');
   };
-
-  const placeholder = mode === 'wallet'
-    ? 'Search address to follow'
-    : 'Search algo to follow';
 
   const shorten = (a: string) => `${a.slice(0, 6)}...${a.slice(-4)}`;
 
@@ -104,27 +77,10 @@ export default function Header({ onFollow }: HeaderProps) {
         onConnect={connect}
       />
 
-      {/* LEFT: Logo + toggle */}
+      {/* LEFT: Logo */}
       <div className={styles.headerLeft}>
         <img src={mydexLogo} alt="logo" className={styles.headerLogo} />
         <span className={styles.headerAppName}>mydex</span>
-
-        <div className={styles.toggleGroup} role="tablist" aria-label="Copy mode">
-          <button
-            className={`${styles.headerButton} ${mode === 'wallet' ? styles.headerButtonActive : ''}`}
-            onClick={() => setMode('wallet')}
-            aria-pressed={mode === 'wallet'}
-          >
-            wallet copy
-          </button>
-          <button
-            className={`${styles.headerButton} ${mode === 'algo' ? styles.headerButtonActive : ''}`}
-            onClick={() => setMode('algo')}
-            aria-pressed={mode === 'algo'}
-          >
-            algo copy
-          </button>
-        </div>
       </div>
 
       {/* CENTER: Search */}
@@ -133,7 +89,7 @@ export default function Header({ onFollow }: HeaderProps) {
           <img src="/assets/loupe.svg" className={styles.headerSearchIcon} alt="Search" />
           <input
             className={styles.headerSearchInput}
-            placeholder={placeholder}
+            placeholder="Search address to follow"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             aria-label="Search input"
@@ -141,22 +97,10 @@ export default function Header({ onFollow }: HeaderProps) {
               if (e.key === 'Enter') handleFollow();
             }}
           />
-          {/* wallet mode: show button only for valid address */}
-          {mode === 'wallet' && isValidWalletAddress && (
-            <button className={styles.followButton} onClick={handleFollow}>Follow</button>
-          )}
-          {/* algo mode: show button only for algo-like id, not for addresses */}
-          {mode === 'algo' && isAlgoId && !isEthAddress && (
+          {isEthAddress && (
             <button className={styles.followButton} onClick={handleFollow}>Follow</button>
           )}
         </div>
-
-        {/* optional UX nudge if user types an address while in algo mode */}
-        {mode === 'algo' && isEthAddress && (
-          <div style={{ position: 'absolute', marginTop: 42, fontSize: 12, opacity: 0.8 }}>
-            Enter an algorithm id (not a wallet address)
-          </div>
-        )}
       </div>
 
       {/* RIGHT: Connect + Gear + status */}

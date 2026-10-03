@@ -11,13 +11,7 @@ import PositionsTable from './components/Positions/PositionsTable';
 import WalletPositions from './components/Positions/WalletPositions';
 import ExpandableCard from './components/ExpandableCard/ExpandableCard';
 
-import { useCopyMode } from '@/app/context/CopyModeContext';
-
 export default function Page() {
-  const { mode } = useCopyMode();
-  const topTitle =
-    mode === 'wallet' ? 'Top Followed Wallets' : 'Top Followed Algorithms';
-
   const [selectedWallet, setSelectedWallet] = useState<string | null>(null);
   const [presetOrder, setPresetOrder] = useState<{ coin: string, side: 'long' | 'short', size?: number } | null>(null);
 
@@ -34,7 +28,7 @@ export default function Page() {
             {/* Left: Top Followed (collapsed by default; sticky) */}
             <div className={styles.sidebarLeft}>
               <ExpandableCard
-                title={topTitle}
+                title="Top Followed Wallets"
                 right="Followers"
                 storageKey="ui.exp.top"
                 defaultOpen={false}
