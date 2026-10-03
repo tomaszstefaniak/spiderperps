@@ -61,6 +61,18 @@ def refresh(hl: HLClient, deep_n: int = config.DISCOVERY_DEEP_N) -> int:
     return done
 
 
+def rescore() -> int:
+    """Recompute scores from stored metrics after changing the formula - no API calls."""
+    with db.connect() as c:
+        rows = c.execute("SELECT address, metrics FROM leaders WHERE stage = 2").fetchall()
+        for r in rows:
+            m = json.loads(r["metrics"])
+            lm = scoring.LeaderMetrics(**{k: m[k] for k in scoring.LeaderMetrics.__dataclass_fields__})
+            score, m["reasons"] = scoring.copyability_score(lm)
+            c.execute("UPDATE leaders SET score = ?, metrics = ? WHERE address = ?", (score, json.dumps(m), r["address"]))
+    return len(rows)
+
+
 def status() -> dict:
     raw = db.kv_get("discovery")
     return json.loads(raw) if raw else {}
@@ -114,9 +126,13 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     p = argparse.ArgumentParser(description="Refresh leader discovery scores")
     p.add_argument("--deep", type=int, default=config.DISCOVERY_DEEP_N, help="how many wallets to deep-score")
+    p.add_argument("--rescore", action="store_true", help="only recompute scores from stored metrics")
     args = p.parse_args()
     db.init()
-    refresh(client, args.deep)
+    if args.rescore:
+        print(f"rescored {rescore()} wallets")
+    else:
+        refresh(client, args.deep)
     for item in ranked(15):
         m = item["metrics"]
         print(f"{item['score']:5.1f}  {item['address']}  " + " · ".join(m["reasons"]))

@@ -239,7 +239,9 @@ def copyability_score(m: LeaderMetrics) -> tuple[float, list[str]]:
     copyable = m.copyable_share if m.copyable_share is not None else 0.7
     drawdown_gate = 1.0 - 0.7 * _clamp((dd - 0.3) / 0.5)  # 1.0 up to 30% drawdown, 0.3 at 80%+
     confidence = _clamp(0.6 + 0.04 * m.round_trips_14d)  # 10+ round trips in 14 days -> full confidence
-    score = 100 * quality * copyable * drawdown_gate * confidence
+    # Huge returns on a tiny account say little: $1k -> 0.4, $10k -> 0.7, $100k+ -> 1.0
+    size_confidence = _clamp(0.4 + 0.3 * math.log10(max(m.equity, 1_000) / 1_000))
+    score = 100 * quality * copyable * drawdown_gate * confidence * size_confidence
     if ret <= 0:
         score *= 0.5
 
@@ -255,4 +257,6 @@ def copyability_score(m: LeaderMetrics) -> tuple[float, list[str]]:
         reasons.append(f"only {m.round_trips_14d} closed trade{'s' if m.round_trips_14d > 1 else ''} in 14d")
     if m.copyable_share is not None and m.copyable_share < 0.95:
         reasons.append(f"{m.copyable_share:.0%} copyable markets")
+    if m.equity < 25_000:
+        reasons.append(f"small account (${m.equity / 1000:.1f}k)")
     return round(score, 1), reasons

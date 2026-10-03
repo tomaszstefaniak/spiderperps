@@ -36,6 +36,9 @@ API_URL = constants.TESTNET_API_URL if USE_TESTNET else constants.MAINNET_API_UR
 ACCOUNT_ADDRESS = os.getenv("HL_ACCOUNT_ADDRESS")
 SECRET_KEY = os.getenv("HL_SECRET_KEY")
 HL_TIMEOUT = int(os.getenv("HL_TIMEOUT", "30"))
+# The legacy order ticket trades with the single server-side key above for anyone who can reach
+# this API, so on mainnet it stays off unless explicitly enabled (local use only).
+ALLOW_SERVER_KEY_MAINNET = os.getenv("HL_ALLOW_SERVER_KEY_MAINNET", "false").lower() == "true"
 
 # Imported after load_dotenv: copytrade.config reads the environment at import time.
 from copytrade import api as copy_api, db as copy_db, runner as copy_runner  # noqa: E402
@@ -211,7 +214,7 @@ def health():
     out = {
         "ok": True,
         "network": "testnet" if USE_TESTNET else "mainnet",
-        "trading_enabled": exchange is not None,
+        "trading_enabled": exchange is not None and (USE_TESTNET or ALLOW_SERVER_KEY_MAINNET),
         "has_account": bool(ACCOUNT_ADDRESS),
         "has_secret": bool(SECRET_KEY),
         "use_testnet": USE_TESTNET,
@@ -333,6 +336,11 @@ def _first_status_error(resp: dict) -> str | None:
 def market_order(o: OrderReq):
     if exchange is None:
         raise HTTPException(status_code=400, detail="Trading not configured (missing HL keys).")
+    if not USE_TESTNET and not ALLOW_SERVER_KEY_MAINNET:
+        raise HTTPException(
+            status_code=403,
+            detail="Server-key trading is off on mainnet. Set HL_ALLOW_SERVER_KEY_MAINNET=true for local use only.",
+        )
 
     # mids for price + slippage bounds
     try:

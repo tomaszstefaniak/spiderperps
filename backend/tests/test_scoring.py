@@ -98,6 +98,9 @@ def test_gates_sink_wallets_we_cannot_follow():
     quiet, reasons = copyability_score(metrics(round_trips_14d=1, win_rate=1.0))
     assert quiet < good and "only 1 closed trade in 14d" in reasons
     assert not any(r.startswith("win rate") for r in reasons)
+    # +1400% on a $6.5k account ranks below a steady $100k trader
+    tiny, reasons = copyability_score(metrics(month_return=14.0, equity=6_500, round_trips_14d=3))
+    assert tiny < good and "small account ($6.5k)" in reasons
 
 
 def lb_row(addr, equity, month=(1000, 0.2, 50_000), week=(100, 0.02, 1), all_time=(5000, 1.0, 1)):
