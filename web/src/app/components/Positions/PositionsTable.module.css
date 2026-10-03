@@ -1,0 +1,71 @@
+.table { width: 100%; }
+
+.headerRow {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(31,31,31,0.88);
+  display: grid;
+  grid-template-columns:
+    1.0fr  /* Market */
+    0.7fr  /* Side   */
+    0.8fr  /* Size   */
+    0.9fr  /* Entry  */
+    0.9fr  /* Fair   */
+    0.9fr  /* Liq.   */
+    1.0fr  /* TP/SL  */
+    0.7fr  /* Lev.   */
+    1.1fr  /* Exposure */
+    1.1fr  /* uPnL   */
+    auto;  /* Action */
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted, #cbd5e1);
+  padding: 6px 0 8px 0;
+}
+
+.rows {
+  max-height: 60vh;
+  overflow: auto;
+  padding-top: 2px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns:
+    1.0fr 0.7fr 0.8fr 0.9fr 0.9fr 0.9fr 1.0fr 0.7fr 1.1fr 1.1fr auto;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  align-items: center;
+  font-size: 13px;
+}
+.row:first-child { border-top: 0; }
+
+.marketCell { display: flex; align-items: center; gap: 8px; overflow: visible; }
+.coinIcon { width: 16px; height: 16px; flex: 0 0 16px; object-fit: contain; border-radius: 3px; }
+
+.num, .right { text-align: right; font-variant-numeric: tabular-nums; }
+.actCell { display: flex; justify-content: flex-end; }
+
+.smallPill {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 28px; padding: 0 12px; border-radius: 999px;
+  background: rgba(255,255,255,0.08); color: #fff; font-size: 12px;
+  border: 1px solid rgba(255,255,255,0.12); cursor: pointer; transition: filter .15s ease;
+}
+.smallPill:hover { filter: brightness(1.05); }
+.smallPill:disabled { opacity: .6; cursor: not-allowed; }
+
+.empty { font-size: 14px; opacity: .8; padding: 6px 0; }
+.green { color: var(--long, #35c46a); }
+.red   { color: var(--short, #ff5656); }
+
+@media (max-width: 480px) {
+  .headerRow,
+  .row {
+    grid-template-columns:
+      1.0fr 0.7fr 0.8fr 0.9fr 0.9fr 0.9fr 1.0fr 0.7fr 1.1fr auto; /* hide Entry */
+  }
+  .hideSm { display: none; }
+}

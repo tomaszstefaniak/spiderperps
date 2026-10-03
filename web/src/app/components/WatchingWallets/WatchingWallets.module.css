@@ -1,0 +1,108 @@
+/* Bare content only — ExpandableCard provides the outer chrome */
+.rows { padding: 2px 0; }
+
+.empty {
+  color: #9aa3ad;
+  font-size: 13px;
+  padding: 6px 0;
+}
+
+/* Make the first column truly shrinkable and keep ellipsis working */
+.row {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto auto auto; /* ← minmax(0,1fr) is key */
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  font-size: 13px;
+}
+.row:first-child { border-top: 0; }
+
+/* Address column with proper ellipsis */
+.addr {
+  display: block;               /* required for ellipsis */
+  white-space: nowrap;          /* required for ellipsis */
+  overflow: hidden;             /* required for ellipsis */
+  text-overflow: ellipsis;      /* … */
+  color: #72f2b6;
+  text-decoration: none;
+}
+.addr:hover { text-decoration: underline; }
+
+/* Toggle pill copied from TP/SL styles (scoped to this module) */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #232323;
+  color: #fff;
+  border: 1px solid #3b3b3b;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  cursor: pointer;
+  user-select: none;
+  transition: background .15s ease, border-color .15s ease, box-shadow .15s ease, color .15s ease;
+}
+
+/* Pill switch */
+.switch {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 10px;
+  border-radius: 9999px;
+  background: #2a2a2a;
+  border: 1px solid #3b3b3b;
+  position: relative;
+  outline: none;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
+  margin: 0;
+  vertical-align: middle;
+}
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .2s ease, background .2s ease;
+}
+.switch:checked {
+  background: var(--switch-accent, #72f2b6);
+  border-color: rgba(255,255,255,0.22);
+}
+.switch:checked::after { transform: translateX(10px); background: #0b0b0b; }
+.switch:focus-visible {
+  box-shadow:
+    0 0 0 2px rgba(255,255,255,0.12),
+    0 0 0 3px var(--switch-accent, #72f2b6);
+}
+
+/* Active state (green like TP) */
+.onGreen {
+  --switch-accent: #72f2b6;
+  background: rgba(114,242,182,0.12);
+  border-color: rgba(114,242,182,0.35);
+  color: #72f2b6;
+}
+.onGreen:focus-within { box-shadow: 0 0 0 2px rgba(114,242,182,0.15); }
+
+/* Remove button */
+.remove {
+  background: transparent;
+  border: none;
+  color: #bbb;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  border-radius: 6px;
+}
+.remove:hover { color: #fff; background: rgba(255,255,255,0.06); }

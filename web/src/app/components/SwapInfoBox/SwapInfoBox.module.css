@@ -1,0 +1,219 @@
+.swapInfoBox {
+  width: 100%;
+  background: rgba(31, 31, 31, 0.8);
+  border-radius: 12px;
+  color: white;
+  font-size: 0.85rem;
+}
+
+.swapInfoHeader {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1.5rem;
+  cursor: pointer;
+}
+
+.swapInfoRate { flex: 1; }
+
+.swapInfoFeeBadge {
+  background: #2f855a;
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  margin-left: 0.5em;
+  font-weight: 600;
+}
+
+.swapInfoArrow {
+  margin-left: 0.5rem;
+  transition: transform 0.2s;
+  opacity: 0.85;
+}
+.swapInfoArrowOpen { transform: rotate(180deg); }
+
+.swapInfoDetails {
+  padding: 0.25rem 1.5rem 0.9rem;
+  border-top: 2px solid #777;
+}
+
+.swapInfoRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0.45rem 0;
+  gap: 12px;
+  font-size: 0.8rem;
+}
+
+/* Compact row layout with equal “box” styling */
+.rowSplit {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  align-items: center;
+  margin: 0.45rem 0;
+}
+
+.rowSplit > * { min-width: 0; }
+
+/* Box look shared by select/input already */
+.select,
+.input {
+  background: #232323;
+  color: #fff;
+  border: 1px solid #3b3b3b;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* default box look from earlier */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #232323;
+  color: #fff;
+  border: 1px solid #3b3b3b;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  cursor: pointer;
+  user-select: none;
+  transition: background .15s ease, border-color .15s ease, box-shadow .15s ease, color .15s ease;
+}
+
+.toggle input:not(.switch) {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: #72f2b6;
+}
+
+/* Pill switch that inherits color from .onGreen / .onRed */
+.switch {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 10px;
+  border-radius: 9999px;
+  background: #2a2a2a;
+  border: 1px solid #3b3b3b;
+  position: relative;
+  outline: none;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
+  margin: 0;                 /* ensure no browser default margin */
+  vertical-align: middle;    /* align consistently in the label */
+}
+
+/* Knob (center vertically for 20×10 track with 8×8 knob) */
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 0px;                  /* (10 - 8) / 2 */
+  left: 0px;
+  width: 8px;
+  height: 8px;               /* <- fix typo here */
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .2s ease, background .2s ease;
+}
+
+/* Checked state — slide to the right edge */
+.switch:checked {
+  background: var(--switch-accent, #72f2b6);
+  border-color: rgba(255,255,255,0.22);
+}
+.switch:checked::after {
+  transform: translateX(10px);  /* 20 - 8 - 1(left) = 11 → delta ≈ 10 */
+  background: #0b0b0b;
+}
+
+/* Keyboard focus ring */
+.switch:focus-visible {
+  box-shadow:
+    0 0 0 2px rgba(255,255,255,0.12),
+    0 0 0 3px var(--switch-accent, #72f2b6);
+}
+
+.onGreen { --switch-accent: #72f2b6; }
+.onRed   { --switch-accent: #ff7a7a; }
+
+/* ACTIVE: Take Profit (green) */
+.onGreen {
+  background: rgba(114,242,182,0.12);
+  border-color: rgba(114,242,182,0.35);
+  color: #72f2b6;
+}
+.onGreen:focus-within {
+  box-shadow: 0 0 0 2px rgba(114,242,182,0.15);
+}
+
+/* ACTIVE: Stop Loss (red) */
+.onRed {
+  background: rgba(255,86,86,0.12);
+  border-color: rgba(255,86,86,0.35);
+  color: #ff7a7a;
+}
+.onRed input {
+  accent-color: #ff7a7a; /* red checkmark when SL is on */
+}
+.onRed:focus-within {
+  box-shadow: 0 0 0 2px rgba(255,86,86,0.18);
+}
+
+/* Hide number input arrows (Chrome, Edge, Safari) */
+.input[type="number"]::-webkit-outer-spin-button,
+.input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Hide number input arrows (Firefox) */
+.input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield; /* modern fallback */
+}
+
+/* Optional tighter variant on very narrow screens */
+@media (max-width: 420px) {
+  .rowSplit { grid-template-columns: 112px 100px 88px; }
+  .select { width: 100px; }
+  .input  { width: 88px; }
+}
+
+
+.rule {
+  height: 0;
+  border-top: 1px dashed rgba(255,255,255,0.12);
+  margin: 8px 0;
+}
+
+.good { color: #72f2b6; }
+.bad  { color: #ff7a7a; }
+
+.actionRow {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.actionBtn {
+  background: #72f2b6;
+  color: #000;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.actionBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

@@ -1,0 +1,54 @@
+.container {
+  display: inline-grid;
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.label {
+  font-weight: 600;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+/* Big, nice-looking button */
+.pickerButton {
+  display: inline-grid;
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  color: #fff;
+  font-size: 15px;
+  line-height: 1;
+  height: 40px;
+  cursor: pointer;
+  transition: box-shadow .15s ease, border-color .15s ease, background .15s ease;
+}
+
+.pickerButton:hover {
+  background: rgba(255,255,255,0.10);
+  border-color: rgba(255,255,255,0.18);
+  box-shadow: 0 0 0 2px rgba(112,236,168,0.18);
+}
+
+.icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  object-fit: contain;
+}
+
+.symbol {
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.caret {
+  font-size: 12px;
+  opacity: 0.8;
+  transform: translateY(1px);
+}
