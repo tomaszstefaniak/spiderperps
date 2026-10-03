@@ -17,7 +17,6 @@ const rid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice
 const log = (id: string, label: string, data?: any) => console.log(`[perp:${id}] ${label}`, data ?? '');
 
 export default function PerpOrderTicket({ preset }: { preset?: { coin: string, side: Side, size?: number } | null }) {
-  const id = useMemo(rid, []);
   const { withdrawable, positions, refresh } = useBalances();
 
   // ticket state
@@ -208,7 +207,7 @@ export default function PerpOrderTicket({ preset }: { preset?: { coin: string, s
       // success
       const { accepted = false, filled = false } = body ?? {};
       setBlockMsg(null);
-      if (filled) setNotice('Swap filled!');
+      if (filled) setNotice('Order filled!');
       else if (accepted) setNotice('Order placed…checking fill');
       else setNotice('Order sent!');
 
@@ -224,7 +223,7 @@ export default function PerpOrderTicket({ preset }: { preset?: { coin: string, s
     } finally {
       setBusy(false);
     }
-  }, [symbol, side, size, slippage, refresh]);
+  }, [symbol, side, baseSize, slippage, refresh]);
 
   // keep pos for the per-market Position line
   const pos = useMemo(() => {
