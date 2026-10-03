@@ -1,8 +1,10 @@
 import os
 import json
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -35,7 +37,22 @@ ACCOUNT_ADDRESS = os.getenv("HL_ACCOUNT_ADDRESS")
 SECRET_KEY = os.getenv("HL_SECRET_KEY")
 HL_TIMEOUT = int(os.getenv("HL_TIMEOUT", "30"))
 
-app = FastAPI()
+# Imported after load_dotenv: copytrade.config reads the environment at import time.
+from copytrade import api as copy_api, db as copy_db, runner as copy_runner  # noqa: E402
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    copy_db.init()
+    workers = copy_runner.start()
+    yield
+    copy_runner.stop(workers)
+
+
+app = FastAPI(lifespan=lifespan)
+# Bearer tokens, no cookies - so allowing any origin doesn't expose sessions.
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.include_router(copy_api.router)
 
 # Public info client (HTTP-only)
 info = Info(base_url=API_URL, skip_ws=True, timeout=HL_TIMEOUT)

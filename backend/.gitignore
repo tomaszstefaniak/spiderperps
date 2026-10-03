@@ -4,3 +4,6 @@ __pycache__/
 .DS_Store
 # runtime data written by the service
 followed_wallets.json
+# copy-trading database
+copytrade.db*
+.pytest_cache/
