@@ -11,10 +11,13 @@ API_URLS = {
 NETWORKS = tuple(API_URLS)
 LEADERBOARD_URL = "https://stats-data.hyperliquid.xyz/Mainnet/leaderboard"
 
-# Leaders are always read from mainnet - that's where the traders worth copying are.
-# Followers execute on the network their agent key was approved on, so a testnet
-# account can paper-copy real mainnet traders.
-LEADER_NETWORK = "mainnet"
+# Leaders are read from mainnet - that's where the traders worth copying are. Followers
+# execute on the network their agent key was approved on, so a testnet account can
+# paper-copy real mainnet traders. COPY_LEADER_NETWORK=testnet is a demo mode: follow a
+# second testnet wallet of your own and trigger copy proposals on demand.
+LEADER_NETWORK = os.getenv("COPY_LEADER_NETWORK", "mainnet")
+if LEADER_NETWORK not in API_URLS:
+    raise ValueError(f"COPY_LEADER_NETWORK must be one of {tuple(API_URLS)}")
 
 APP_NAME = os.getenv("COPY_APP_NAME", "SpiderPerps")
 DB_PATH = Path(os.getenv("COPY_DB_PATH", str(BASE_DIR / "copytrade.db")))

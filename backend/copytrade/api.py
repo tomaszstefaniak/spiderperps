@@ -7,7 +7,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from . import auth, db, discovery
+from . import auth, config, db, discovery
 from .auth import AuthError, Session
 from .hlapi import client as hl
 from .positions import parse_positions
@@ -310,7 +310,7 @@ def leader(address: str):
     addr = _address(address)
     try:
         scored = discovery.get(hl, addr)
-        state = hl.clearinghouse_state(addr, "mainnet")
+        state = hl.clearinghouse_state(addr, config.LEADER_NETWORK)
     except Exception as e:
         raise HTTPException(502, f"hyperliquid error: {e}") from e
     positions = [

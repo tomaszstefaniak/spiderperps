@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs><radialGradient id="bg" cx="50%" cy="42%" r="75%"><stop offset="0" stop-color="#18213A"/><stop offset="1" stop-color="#0B0C0E"/></radialGradient></defs>
+  
+    <line x1="548.6" y1="420.4" x2="586.7" y2="486.4" stroke="#E8433F" stroke-width="21.1" stroke-linecap="round"/>
+    <polygon points="608.4,524.0 558.8,502.5 614.6,470.3" fill="#E8433F" stroke="#E8433F" stroke-width="6.2" stroke-linejoin="round"/>
+    <line x1="573.1" y1="589.5" x2="496.8" y2="589.5" stroke="#3B6FF5" stroke-width="21.1" stroke-linecap="round"/>
+    <polygon points="453.4,589.5 496.8,557.3 496.8,621.7" fill="#3B6FF5" stroke="#3B6FF5" stroke-width="6.2" stroke-linejoin="round"/>
+    <line x1="414.3" y1="526.1" x2="452.5" y2="460.1" stroke="#72F2B6" stroke-width="21.1" stroke-linecap="round"/>
+    <polygon points="474.2,422.5 480.4,476.2 424.6,444.0" fill="#72F2B6" stroke="#72F2B6" stroke-width="6.2" stroke-linejoin="round"/>
+    <circle cx="512.0" cy="357.0" r="57.0" fill="#E8433F"/>
+    <circle cx="646.2" cy="589.5" r="57.0" fill="#3B6FF5"/>
+    <circle cx="377.8" cy="589.5" r="57.0" fill="#72F2B6"/>
+</svg>
