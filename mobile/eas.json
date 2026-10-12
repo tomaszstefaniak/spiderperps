@@ -5,10 +5,18 @@
   },
   "build": {
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://spiderperps.91-228-199-238.sslip.io",
+        "EXPO_PUBLIC_WEB_URL": "https://spiderperps.91-228-199-238.sslip.io"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://spiderperps.91-228-199-238.sslip.io",
+        "EXPO_PUBLIC_WEB_URL": "https://spiderperps.91-228-199-238.sslip.io"
+      }
     }
   },
   "submit": {

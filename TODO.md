@@ -1,8 +1,8 @@
 # TODO (submission due 2026-10-12 23:59 PT)
 
 ## Waiting on Tomasz
-- [ ] **App icon + splash** (`mobile/assets/`): 1024×1024 PNG, no transparency for iOS
-- [ ] **Domain** pointing to the VPS (A record), plus VPS address / SSH user / OS → deploy (`deploy/README.md`)
+- [x] App icon + splash (`brand/`)
+- [x] Deployed to the VPS (pm2 + nginx + certbot): https://spiderperps.91-228-199-238.sslip.io
 - [ ] `npx eas-cli@latest login` + `init` (enables push tokens), then first TestFlight build
 - [ ] First testnet end-to-end run: connect → approve phone → follow → approve a copy
 - [x] License: MIT
@@ -12,8 +12,8 @@
 - [ ] Optional: Xcode 26.5+ for local native builds (Expo SDK 57 doesn't compile on 26.3)
 
 ## Engineering
-- [ ] First `docker compose up --build` happens on the VPS. Not verified locally: Docker Desktop on the Mac couldn't reach Docker Hub. Verified instead: `docker compose config`, and the web standalone server serving every route.
-- [ ] Set `EXPO_PUBLIC_API_URL` / `EXPO_PUBLIC_WEB_URL` in `mobile/eas.json` once the domain exists
+- [ ] Docker Compose stack is untested (the VPS uses pm2 + nginx; see deploy/README.md)
+- [x] `EXPO_PUBLIC_API_URL` / `EXPO_PUBLIC_WEB_URL` set in `mobile/eas.json`
 - [x] Web order ticket: sign in the browser with an agent key + real TP/SL; delete the server-key endpoints
 - [ ] Tomasz: test the web ticket with MetaMask on testnet (Connect → Enable trading → order with TP/SL)
 - [x] Public web pages for judges: landing + trader rankings + trader profile

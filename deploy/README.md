@@ -20,3 +20,20 @@ Then:
 
 Update: `git pull && docker compose up -d --build`. Data (SQLite) lives in the `api-data` volume; back it up with
 `docker compose cp api:/data/copytrade.db ./backup.db`.
+
+## Next to existing sites (what the live server uses)
+
+If the VPS already runs nginx (ports 80/443 taken), skip Docker and run the two processes with pm2:
+
+```bash
+git clone https://github.com/tomaszstefaniak/spiderperps.git /opt/spiderperps && mkdir -p /opt/spiderperps/data
+apt-get install -y python3.12-venv
+cd /opt/spiderperps/backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+/opt/spiderperps/deploy/update.sh                      # builds the web app, starts both pm2 processes
+sed "s/SERVER_NAME/your.domain/" /opt/spiderperps/deploy/nginx-spiderperps.conf > /etc/nginx/sites-available/spiderperps
+ln -s /etc/nginx/sites-available/spiderperps /etc/nginx/sites-enabled/ && nginx -t && systemctl reload nginx
+certbot --nginx -d your.domain --redirect
+```
+
+No domain? `<name>.<ip-with-dashes>.sslip.io` resolves to the server and gets a normal Let's Encrypt certificate.
+Updates: `/opt/spiderperps/deploy/update.sh`.

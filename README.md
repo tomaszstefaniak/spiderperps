@@ -22,6 +22,8 @@ SpiderPerps finds traders worth following on Hyperliquid, alerts you the moment 
 - **Copy-trading bots usually hold your keys.** Here the server never sees a key. Your phone creates a Hyperliquid *agent key*, stores it in the iOS Keychain / Android Keystore, and you approve it once from your wallet. Agent keys can place orders but **can't withdraw or transfer funds**, and you can revoke them on Hyperliquid at any time.
 - **A human approves every copy**, so the ranking favors traders who hold positions for hours or days rather than scalpers.
 
+**Live:** https://spiderperps.91-228-199-238.sslip.io · rankings, trader reports, phone approval, browser trading (testnet)
+
 ## What's in the repo
 
 | Folder | What | Stack |

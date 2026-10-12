@@ -28,7 +28,7 @@ Copy trading on perps has two problems: finding someone worth copying, and handi
 
 **GitHub:** https://github.com/tomaszstefaniak/spiderperps (MIT)
 
-**Live site:** _add after deploy_
+**Live site:** https://spiderperps.91-228-199-238.sslip.io (trader rankings, any wallet's copyability report, phone approval page, browser trading on testnet)
 
 **Logo:** `brand/spiderperps-logo-1024.png`
 
