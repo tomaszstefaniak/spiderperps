@@ -19,9 +19,8 @@
     "android": {
       "package": "com.spiderperps",
       "adaptiveIcon": {
-        "backgroundColor": "#0B0C0E",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#0A1E45",
+        "foregroundImage": "./assets/images/android-icon-foreground.png"
       },
       "predictiveBackGestureEnabled": false
     },
@@ -36,7 +35,7 @@
         {
           "backgroundColor": "#0B0C0E",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 160
+          "imageWidth": 200
         }
       ],
       "expo-notifications",
