@@ -168,7 +168,7 @@ class Watcher:
         created: list[Created] = []
         for leader, followers in follows.items():
             try:
-                state = self.hl.clearinghouse_state(leader, config.LEADER_NETWORK)
+                state = self.hl.clearinghouse_state(leader, config.leader_network(leader))
             except Exception:
                 log.warning("could not load leader %s", leader)
                 continue
@@ -239,7 +239,7 @@ class Watcher:
             )
 
         status = "pending" if sizing.size > 0 else "info"
-        leader_px = self.hl.all_mids(config.LEADER_NETWORK).get(coin)
+        leader_px = self.hl.all_mids(config.leader_network(leader)).get(coin)
         ref_px = sizing.notional / sizing.size if sizing.size > 0 else None
         ts = db.now()
         with db.connect() as c:

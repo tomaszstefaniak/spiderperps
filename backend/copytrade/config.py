@@ -18,6 +18,13 @@ LEADERBOARD_URL = "https://stats-data.hyperliquid.xyz/Mainnet/leaderboard"
 LEADER_NETWORK = os.getenv("COPY_LEADER_NETWORK", "mainnet")
 if LEADER_NETWORK not in API_URLS:
     raise ValueError(f"COPY_LEADER_NETWORK must be one of {tuple(API_URLS)}")
+# Demo leaders read from testnet while every other leader stays on LEADER_NETWORK
+# (comma-separated addresses), so a live server can also run an on-demand demo.
+TESTNET_LEADERS = {a.strip().lower() for a in os.getenv("COPY_TESTNET_LEADERS", "").split(",") if a.strip()}
+
+
+def leader_network(address: str) -> str:
+    return "testnet" if address.lower() in TESTNET_LEADERS else LEADER_NETWORK
 
 APP_NAME = os.getenv("COPY_APP_NAME", "SpiderPerps")
 DB_PATH = Path(os.getenv("COPY_DB_PATH", str(BASE_DIR / "copytrade.db")))

@@ -187,3 +187,15 @@ def test_stale_proposals_expire(setup, hl):
         c.execute("UPDATE proposals SET expires_at = 0")
     assert expire_stale() == 1
     assert proposals()[-1]["status"] == "expired"
+
+
+def test_demo_leaders_are_read_from_testnet(setup, hl, monkeypatch):
+    from copytrade import config
+    w, _ = setup
+    monkeypatch.setattr(config, "TESTNET_LEADERS", {LEADER})
+    hl.states[(LEADER, "testnet")] = state({"BTC": (1.0, 20)}, equity=1_000_000)
+    w.tick()
+    hl.states[(LEADER, "testnet")] = state({"BTC": (1.0, 20), "ETH": (10.0, 5)}, equity=1_000_000)
+    leader_holds(hl, {"BTC": (1.0, 20)})  # mainnet unchanged: the move must come from testnet
+    assert w.tick() == 1
+    assert proposals()[-1]["coin"] == "ETH"

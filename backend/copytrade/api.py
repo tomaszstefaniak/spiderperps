@@ -310,7 +310,7 @@ def leader(address: str):
     addr = _address(address)
     try:
         scored = discovery.get(hl, addr)
-        state = hl.clearinghouse_state(addr, config.LEADER_NETWORK)
+        state = hl.clearinghouse_state(addr, config.leader_network(addr))
     except Exception as e:
         raise HTTPException(502, f"hyperliquid error: {e}") from e
     positions = [
