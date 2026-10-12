@@ -57,3 +57,7 @@ Work before the contest window (2026-09-14 → 2026-10-12) is kept in the histor
 - `backend/`: FastAPI order and market-data endpoints in `app.py` that traded with one server-side key. They were removed during the contest; trading now signs on the user's device.
 
 Everything else was built during the contest: the non-custodial copy-trading service (`backend/copytrade/`), discovery scoring, the mobile app, phone approval and sign-in, browser-signed trading with real TP/SL on the web, the landing and trader pages, deployment, and the toolchain upgrades and bug fixes recorded in the history.
+
+## License
+
+MIT, see [LICENSE](LICENSE).

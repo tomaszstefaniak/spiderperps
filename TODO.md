@@ -5,8 +5,8 @@
 - [ ] **Domain** pointing to the VPS (A record), plus VPS address / SSH user / OS → deploy (`deploy/README.md`)
 - [ ] `npx eas-cli@latest login` + `init` (enables push tokens), then first TestFlight build
 - [ ] First testnet end-to-end run: connect → approve phone → follow → approve a copy
-- [ ] Choose a license before publishing (MIT suggested)
-- [ ] OK to create the public GitHub repo `spiderperps`
+- [x] License: MIT
+- [x] Public GitHub repo `tomaszstefaniak/spiderperps`
 - [ ] Builder fee: rate (e.g. 0.05%) and the address that receives it
 - [ ] Fix git email: `git config --global user.email stefaniak.tom@gmail.com`
 - [ ] Optional: Xcode 26.5+ for local native builds (Expo SDK 57 doesn't compile on 26.3)
